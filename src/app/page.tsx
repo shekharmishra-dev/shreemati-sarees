@@ -10,40 +10,36 @@ const supabase = createClient(
 export default async function Home() {
   const { data: sarees, error } = await supabase
     .from('Sarees')
-    .select('name, price, description, image_url'); // Added image_url here
+    .select('*'); // This fetches everything
 
-  if (error) return <div className="p-24 text-red-500">Error: {error.message}</div>;
+  if (error) return <div className="p-24 text-red-500">Database Error: {error.message}</div>;
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-12 bg-stone-50 text-stone-900">
-      <header className="text-center mb-16">
-        <h1 className="text-6xl font-serif font-bold text-amber-900 mb-2">Shreemati</h1>
-        <div className="h-1 w-24 bg-amber-600 mx-auto mb-4"></div>
-        <p className="text-xl italic text-stone-600 font-serif">The Heritage Saree Boutique</p>
-      </header>
+    <main className="flex min-h-screen flex-col items-center p-6 bg-stone-50">
+      <h1 className="text-4xl font-serif font-bold text-amber-900 my-10">Shreemati Boutique</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 w-full max-w-5xl">
-        {sarees?.map((saree, index) => (
-          <div key={index} className="group bg-white overflow-hidden rounded-3xl shadow-sm hover:shadow-xl transition-shadow duration-300 border border-stone-200">
-            {/* Image Section */}
-            <div className="aspect-[4/5] overflow-hidden bg-stone-200">
+      <div className="flex flex-col gap-10 w-full max-w-2xl">
+        {sarees?.map((saree) => (
+          <div key={saree.id} className="bg-white rounded-xl shadow-lg overflow-hidden border">
+            {/* If image_url exists, show it; otherwise show text */}
+            {saree.image_url ? (
               <img 
-                src={saree.image_url || 'https://via.placeholder.com/400x500?text=Saree+Image'} 
+                src={saree.image_url} 
                 alt={saree.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                className="w-full h-auto min-h-[300px] object-cover"
+                onError={(e) => {
+                  console.log("Image failed to load for: " + saree.name);
+                }}
               />
-            </div>
-            
-            {/* Text Section */}
-            <div className="p-8">
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-2xl font-bold font-serif">{saree.name}</h2>
-                <span className="text-xl font-bold text-amber-800">₹{saree.price}</span>
+            ) : (
+              <div className="p-20 bg-stone-200 text-center text-stone-500">
+                No image link found in Supabase for "{saree.name}"
               </div>
-              <p className="text-stone-600 leading-relaxed mb-6">{saree.description}</p>
-              <button className="w-full py-3 bg-stone-900 text-white rounded-full font-medium hover:bg-amber-900 transition-colors">
-                Enquire on WhatsApp
-              </button>
+            )}
+            <div className="p-6">
+              <h2 className="text-2xl font-bold">{saree.name}</h2>
+              <p className="text-stone-600 mt-2">{saree.description}</p>
+              <p className="text-xl font-bold text-amber-800 mt-4">₹{saree.price}</p>
             </div>
           </div>
         ))}
