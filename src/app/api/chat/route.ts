@@ -2,36 +2,26 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-
 export async function POST(req: Request) {
-  const { message } = await req.json();
+  try {
+    const { message } = await req.json();
+    const apiKey = process.env.GEMINI_API_KEY;
 
-  // 1. Get current inventory from Supabase
-  const { data: sarees } = await supabase.from('Sarees').select('*');
-  const inventoryContext = JSON.stringify(sarees);
+    if (!apiKey) {
+      return NextResponse.json({ text: "API Key is missing in server settings." }, { status: 500 });
+    }
 
-  // 2. Setup Gemini
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-  
-  const prompt = `
-    You are an elegant and helpful saree expert at "Shreemati Boutique". 
-    Your tone is polite, professional, and reflects Indian hospitality.
-    
-    Here is our current inventory: ${inventoryContext}
-    
-    Customer asks: "${message}"
-    
-    Guidelines:
-    - If they ask for recommendations, suggest specific sarees from the inventory.
-    - Mention prices in INR (₹).
-    - If we don't have something, politely offer the closest match.
-    - Keep responses concise (2-3 sentences).
-  `;
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  
-  return NextResponse.json({ text: response.text() });
+    const { data: sarees } = await supabase.from('Sarees').select('name, price, description');
+    
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+    const prompt = `You are a saree expert for Shreemati Boutique. Inventory: ${JSON.stringify(sarees)}. Answer this: ${message}`;
+
+    const result = await model.generateContent(prompt);
+    return NextResponse.json({ text: result.response.text() });
+  } catch (error: any) {
+    return NextResponse.json({ text: "I'm having trouble connecting to the brain. Error: " + error.message }, { status: 500 });
+  }
 }
