@@ -38,7 +38,7 @@ export default function Home() {
     getSarees();
   }, []);
 
-  // Filter sarees whenever category or price selection changes
+  // Filter logic for Categories and Price
   useEffect(() => {
     let filtered = sarees;
     if (activeCategory !== "All") {
@@ -48,7 +48,7 @@ export default function Home() {
     setFilteredSarees(filtered);
   }, [activeCategory, activePrice, sarees]);
 
-  // Connect to Gemini AI Stylist
+  // AI Stylist Handler
   const askAI = async () => {
     if (!input) return;
     setLoading(true);
@@ -69,16 +69,16 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#FDFCFB] text-[#2D2926] antialiased">
-      {/* Navigation Bar */}
+      {/* Elegant Header */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-stone-100 py-8 px-12 flex justify-between items-center">
         <div className="text-[9px] uppercase tracking-[0.4em] font-bold text-stone-400">Since 2026</div>
         <h1 className="text-5xl font-serif tracking-[0.2em] uppercase font-light text-[#4A4036]">Shreemati</h1>
         <div className="text-[9px] uppercase tracking-[0.4em] font-bold text-stone-400 italic">The Heritage Edit</div>
       </nav>
 
-      {/* Hero & AI Stylist Section */}
+      {/* Integrated AI Stylist Section */}
       <section className="py-20 px-6 text-center max-w-4xl mx-auto">
-        <h2 className="text-6xl font-serif italic text-stone-800 mb-8">The Art of the Drape</h2>
+        <h2 className="text-6xl font-serif italic text-stone-800 mb-8 leading-tight">The Art of the Drape</h2>
         <div className="max-w-2xl mx-auto bg-white border border-amber-100 p-8 rounded-sm shadow-sm">
           <div className="flex items-center justify-center gap-2 mb-4">
              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -146,7 +146,7 @@ export default function Home() {
               </div>
             </div>
             <div className="space-y-2 text-center">
-              <h3 className="text-sm font-serif tracking-[0.1em] text-stone-800 uppercase">{s.name}</h3>
+              <h3 className="text-lg font-serif tracking-[0.1em] text-stone-900 uppercase font-medium">{s.name}</h3>
               <p className="text-[11px] text-stone-400 italic font-light px-6 line-clamp-2">{s.description}</p>
               <p className="text-sm font-medium tracking-wider text-amber-800">₹{s.price?.toLocaleString('en-IN')}</p>
             </div>
