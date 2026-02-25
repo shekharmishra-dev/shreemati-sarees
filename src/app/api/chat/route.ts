@@ -16,8 +16,8 @@ export async function POST(req: Request) {
 
     const { data: sarees } = await supabase.from('Sarees').select('name, price, description');
     
-    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-    const prompt = `You are a saree expert for Shreemati Boutique. Inventory: ${JSON.stringify(sarees)}. Answer this: ${message}`;
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const prompt = `You are a saree expert for Shreemati Boutique. also keep your answer short under 20 words. Inventory: ${JSON.stringify(sarees)}. Answer this: ${message}`;
 
     const result = await model.generateContent(prompt);
     return NextResponse.json({ text: result.response.text() });
