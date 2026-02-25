@@ -7,8 +7,24 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const CATEGORIES = [
+  "All", "Banarasi", "Kanjivaram", "Chanderi", "Bandhani", 
+  "Paithani", "Patola", "Organza", "Tussar Silk", "Chiffon", "Georgette"
+];
+
+const PRICE_RANGES = [
+  { label: "All Prices", min: 0, max: 1000000 },
+  { label: "Under ₹5,000", min: 0, max: 5000 },
+  { label: "₹5,000 - ₹15,000", min: 5001, max: 15000 },
+  { label: "Luxury (Above ₹15,000)", min: 15001, max: 1000000 },
+];
+
 export default function Home() {
   const [sarees, setSarees] = useState<any[]>([]);
+  const [filteredSarees, setFilteredSarees] = useState<any[]>([]);
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [activePrice, setActivePrice] = useState(PRICE_RANGES[0]);
+  
   const [input, setInput] = useState('');
   const [chatResponse, setChatResponse] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,15 +32,28 @@ export default function Home() {
   useEffect(() => {
     async function getSarees() {
       const { data } = await supabase.from('Sarees').select('*');
-      if (data) setSarees(data);
+      if (data) {
+        setSarees(data);
+        setFilteredSarees(data);
+      }
     }
     getSarees();
   }, []);
 
+  // Filtering Logic
+  useEffect(() => {
+    let filtered = sarees;
+    if (activeCategory !== "All") {
+      filtered = filtered.filter(s => s.category === activeCategory);
+    }
+    filtered = filtered.filter(s => s.price >= activePrice.min && s.price <= activePrice.max);
+    setFilteredSarees(filtered);
+  }, [activeCategory, activePrice, sarees]);
+
   const askAI = async () => {
     if (!input) return;
     setLoading(true);
-    setChatResponse("Curating your styling advice...");
+    setChatResponse("Radhika is curating your personal edit...");
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -34,83 +63,113 @@ export default function Home() {
       const data = await res.json();
       setChatResponse(data.text);
     } catch (err) {
-      setChatResponse("I'm unable to connect to our stylist right now. Please try again.");
+      setChatResponse("Our stylist is currently unavailable. Please try again shortly.");
     }
     setLoading(false);
   };
 
   return (
-    <main className="min-h-screen bg-[#FDFCFB] text-[#2D2926] antialiased">
-      {/* Elegant Header */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-stone-100 py-6 px-10 flex justify-between items-center">
-        <div className="text-xs uppercase tracking-[0.3em] font-medium text-stone-500">Since 2026</div>
-        <h1 className="text-4xl font-serif tracking-widest uppercase font-light text-[#4A4036]">Shreemati</h1>
-        <div className="text-xs uppercase tracking-[0.3em] font-medium text-stone-500 italic">The Heritage Edit</div>
+    <main className="min-h-screen bg-[#FDFCFB] text-[#2D2926] antialiased font-sans">
+      {/* Navigation */}
+      <nav className="sticky top-0 z-50 bg-[#FDFCFB]/90 backdrop-blur-md border-b border-stone-200 py-6 px-10 flex justify-between items-center">
+        <div className="text-[10px] uppercase tracking-[0.3em] font-medium text-stone-500">Since 2026</div>
+        <h1 className="text-4xl font-serif tracking-[0.2em] uppercase font-light text-[#4A4036]">Shreemati</h1>
+        <div className="text-[10px] uppercase tracking-[0.3em] font-medium text-stone-500 italic">The Heritage Edit</div>
       </nav>
 
       {/* Hero Section */}
-      <section className="py-20 px-6 text-center max-w-4xl mx-auto">
-        <p className="text-stone-400 uppercase tracking-[0.4em] text-[10px] mb-4">Curated Collection</p>
-        <h2 className="text-5xl md:text-6xl font-serif italic text-stone-800 leading-tight mb-8">
-          Timeless Drapes for the Modern Matriarch
+      <section className="py-24 px-6 text-center max-w-5xl mx-auto">
+        <p className="text-amber-700 uppercase tracking-[0.5em] text-[10px] mb-6 font-bold">Handcrafted Elegance</p>
+        <h2 className="text-6xl md:text-7xl font-serif italic text-stone-800 leading-tight mb-8">
+          A Legacy Woven in Silk
         </h2>
-        <div className="h-[1px] w-20 bg-amber-400 mx-auto"></div>
-      </section>
-
-      {/* Luxury Product Grid */}
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 pb-32">
-        {sarees.map((s) => (
-          <div key={s.id} className="group cursor-pointer">
-            <div className="relative aspect-[3/4] overflow-hidden bg-stone-100 mb-6">
-              <img 
-                src={s.image_url || 'https://images.unsplash.com/photo-1583391733975-ac943e806f15?q=80&w=1000'} 
-                className="w-full h-full object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-110"
-                alt={s.name}
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500" />
-            </div>
-            <div className="space-y-2 text-center">
-              <h3 className="text-lg font-serif tracking-wide text-stone-800 uppercase">{s.name}</h3>
-              <p className="text-xs text-stone-400 italic mb-3">{s.description}</p>
-              <p className="text-sm font-semibold tracking-wider text-amber-700">₹{s.price.toLocaleString('en-IN')}</p>
-              <button className="mt-4 px-6 py-2 border border-stone-200 text-[10px] uppercase tracking-[0.2em] hover:bg-stone-900 hover:text-white transition-all duration-300">
-                View Details
-              </button>
-            </div>
+        <div className="h-[1px] w-32 bg-amber-400 mx-auto mb-12"></div>
+        
+        {/* Integrated AI Stylist Section */}
+        <div className="max-w-3xl mx-auto bg-white border border-amber-100 p-8 shadow-sm rounded-sm">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+            <h3 className="text-xs uppercase tracking-[0.2em] font-semibold text-stone-500">Consult with Radhika, Lead Stylist</h3>
           </div>
-        ))}
-      </div>
-
-      {/* High-End AI Chat Interface */}
-      <div className="fixed bottom-10 right-10 z-50 group">
-        <div className="bg-white shadow-2xl rounded-sm border border-stone-100 w-[350px] overflow-hidden transition-all duration-500">
-          <div className="bg-[#4A4036] p-4 text-white">
-            <h4 className="text-[10px] uppercase tracking-[0.3em] font-light">Boutique Stylist</h4>
-          </div>
-          <div className="h-[200px] overflow-y-auto p-6 text-sm leading-relaxed text-stone-600 bg-stone-50/50 italic">
-            {chatResponse || "Welcome. Allow me to guide you through our textures and weaves. What occasion are you shopping for?"}
-          </div>
-          <div className="p-4 bg-white border-t border-stone-100 flex gap-2">
+          <p className="text-sm font-serif italic text-stone-600 mb-6 leading-relaxed">
+            "{chatResponse || "Namaste. I am here to help you find the perfect drape for your special occasion. What are you looking for today?"}"
+          </p>
+          <div className="flex gap-2 border-b border-stone-200 pb-2 max-w-md mx-auto">
             <input 
-              className="flex-1 bg-transparent text-[11px] focus:outline-none placeholder:italic"
-              placeholder="Ask our stylist..."
+              className="flex-1 bg-transparent text-sm focus:outline-none placeholder:italic"
+              placeholder="Ask about fabrics, occasions, or styling..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && askAI()}
             />
-            <button 
-              onClick={askAI}
-              className="text-[10px] uppercase tracking-widest font-bold text-amber-700 hover:text-stone-900 transition-colors"
-            >
-              {loading ? "..." : "SEND"}
+            <button onClick={askAI} className="text-[10px] uppercase tracking-widest font-bold text-amber-700">
+              {loading ? "..." : "Consult"}
             </button>
           </div>
         </div>
+      </section>
+
+      {/* Boutique Filters */}
+      <section className="max-w-7xl mx-auto px-10 mb-12">
+        <div className="flex flex-wrap justify-center gap-8 border-y border-stone-100 py-6">
+          <div className="flex flex-wrap justify-center gap-4">
+            {CATEGORIES.map(cat => (
+              <button 
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`text-[10px] uppercase tracking-widest px-4 py-2 transition-all ${activeCategory === cat ? 'bg-stone-900 text-white' : 'text-stone-500 hover:text-stone-900'}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+          <div className="w-full h-px bg-stone-50 md:hidden"></div>
+          <div className="flex gap-4">
+            {PRICE_RANGES.map(range => (
+              <button 
+                key={range.label}
+                onClick={() => setActivePrice(range)}
+                className={`text-[10px] uppercase tracking-widest px-4 py-2 border border-stone-100 ${activePrice.label === range.label ? 'border-amber-400 text-amber-800' : 'text-stone-400'}`}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Product Gallery */}
+      <div className="max-w-7xl mx-auto px-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16 pb-32">
+        {filteredSarees.length > 0 ? filteredSarees.map((s) => (
+          <div key={s.id} className="group cursor-pointer">
+            <div className="relative aspect-[4/5] overflow-hidden bg-stone-100 mb-8">
+              <img 
+                src={s.image_url || 'https://images.unsplash.com/photo-1610030469668-93510cb66c73?q=80&w=1000'} 
+                className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-105"
+                alt={s.name}
+              />
+              <div className="absolute top-4 left-4 bg-white/90 px-3 py-1 text-[9px] uppercase tracking-widest text-stone-600">
+                {s.category || 'Heritage'}
+              </div>
+            </div>
+            <div className="space-y-3 text-center">
+              <h3 className="text-sm font-serif tracking-[0.2em] text-stone-800 uppercase">{s.name}</h3>
+              <p className="text-[11px] text-stone-400 italic font-light px-4">{s.description}</p>
+              <p className="text-sm font-medium tracking-wider text-amber-700">₹{s.price?.toLocaleString('en-IN')}</p>
+            </div>
+          </div>
+        )) : (
+          <div className="col-span-full text-center py-20 text-stone-400 italic font-serif">
+            Currently curating more pieces for this selection...
+          </div>
+        )}
       </div>
 
-      {/* Minimalist Footer */}
-      <footer className="border-t border-stone-100 py-12 text-center text-[10px] uppercase tracking-[0.5em] text-stone-400 bg-white">
-        &copy; 2026 Shreemati Heritage &bull; Handcrafted in India
+      <footer className="border-t border-stone-100 py-16 text-center bg-white">
+        <p className="text-[10px] uppercase tracking-[0.8em] text-stone-400">Shreemati Heritage &bull; Handcrafted in India</p>
       </footer>
     </main>
   );
