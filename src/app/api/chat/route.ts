@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // Now fetching Category as well!
+    // Fetch inventory so Radhika knows what we have
     const { data: sarees } = await supabase.from('Sarees').select('name, price, description, category');
     
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -30,9 +30,8 @@ export async function POST(req: Request) {
 
       Rules:
       1. Greet with "Namaste".
-      2. Recommend specific sarees by their Name and Category (e.g., "Our Midnight Banarasi").
+      2. Recommend specific sarees by their Name and Category.
       3. Keep answers under 40 words.
-      4. If they ask for a price, be precise.
     `;
 
     const result = await model.generateContent(`${systemPrompt}\n\nCustomer: ${message}`);
@@ -40,6 +39,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ text: responseText });
   } catch (error: any) {
-    return NextResponse.json({ text: "Our stylist is adjusting the drapes. Please try again." }, { status: 500 });
+    return NextResponse.json({ text: "Our stylist is currently assisting another client." }, { status: 500 });
   }
 }
