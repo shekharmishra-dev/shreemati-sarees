@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useState, useEffect, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,332 +9,625 @@ const supabase = createClient(
 
 const CATEGORIES = ["Banarasi","Kanjivaram","Chanderi","Bandhani","Paithani","Patola","Organza","Tussar Silk","Chiffon","Georgette"];
 
-const CATEGORY_DESC: Record<string,string> = {
-  "Banarasi": "Woven in Varanasi with gold & silver zari threads",
-  "Kanjivaram": "The queen of silks, from Tamil Nadu's temple looms",
-  "Chanderi": "Featherweight weaves from the banks of the Betwa",
-  "Bandhani": "Tie-dyed heritage of Rajasthan & Gujarat",
-  "Paithani": "Peacock-motif silks from Maharashtra's Aurangabad",
-  "Patola": "Double ikat masterwork from Patan, Gujarat",
-  "Organza": "Translucent finesse with crisp, luminous drape",
-  "Tussar Silk": "Wild silk with a natural golden-honey sheen",
-  "Chiffon": "Weightless fabric for the modern silhouette",
-  "Georgette": "Matte crinkle weave, fluid and effortlessly draped",
+const CAT_META: Record<string,{origin:string,craft:string}> = {
+  "Banarasi":   { origin:"Varanasi, UP",      craft:"Zari brocade weaving" },
+  "Kanjivaram": { origin:"Kanchipuram, TN",   craft:"Temple-motif silk" },
+  "Chanderi":   { origin:"Chanderi, MP",      craft:"Sheer cotton-silk blend" },
+  "Bandhani":   { origin:"Jaipur, Rajasthan", craft:"Tie-dye resist work" },
+  "Paithani":   { origin:"Aurangabad, MH",    craft:"Tapestry-woven silk" },
+  "Patola":     { origin:"Patan, Gujarat",    craft:"Double-ikat silk" },
+  "Organza":    { origin:"Pan-India",         craft:"Plain-weave crisp silk" },
+  "Tussar Silk":{ origin:"Jharkhand",         craft:"Wild-silk hand-loom" },
+  "Chiffon":    { origin:"Pan-India",         craft:"Lightweight crêpe weave" },
+  "Georgette":  { origin:"Pan-India",         craft:"Crinkle-twist weave" },
 };
 
 export default function Home() {
   const [sarees, setSarees] = useState<any[]>([]);
   const [viewingCategory, setViewingCategory] = useState<string|null>(null);
   const [cart, setCart] = useState<any[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [orderComplete, setOrderComplete] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<{role:'user'|'ai', text:string}[]>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [cursorPos, setCursorPos] = useState({x:-100,y:-100});
-  const [heroVisible, setHeroVisible] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [orderDone, setOrderDone] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [messages, setMessages] = useState<{who:"u"|"r",text:string}[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [mounted, setMounted] = useState(false);
+  const chatEnd = useRef<HTMLDivElement>(null);
+  const catRefs = useRef<(HTMLDivElement|null)[]>([]);
 
   useEffect(() => {
-    async function getSarees() {
-      const { data } = await supabase.from('Sarees').select('*');
-      if (data) setSarees(data);
-    }
-    getSarees();
-    setTimeout(() => setHeroVisible(true), 80);
-    const moveCursor = (e: MouseEvent) => setCursorPos({x: e.clientX, y: e.clientY});
-    window.addEventListener('mousemove', moveCursor);
-    return () => window.removeEventListener('mousemove', moveCursor);
+    supabase.from("Sarees").select("*").then(({data}) => { if (data) setSarees(data); });
+    setMounted(true);
   }, []);
 
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
+  useEffect(() => { chatEnd.current?.scrollIntoView({behavior:"smooth"}); }, [messages]);
 
-  const categoryInventory = sarees.filter(s => s.category === viewingCategory);
-  const addToCart = (saree: any) => { setCart(prev => [...prev, saree]); setIsCartOpen(true); };
-  const removeFromCart = (idx: number) => setCart(prev => prev.filter((_,i) => i !== idx));
+  const inventory = sarees.filter(s => s.category === viewingCategory);
+  const addToCart = (s:any) => { setCart(p=>[...p,s]); setCartOpen(true); };
+  const removeFromCart = (i:number) => setCart(p=>p.filter((_,j)=>j!==i));
 
-  const askAI = async () => {
-    if (!input.trim()) return;
-    const userMsg = input.trim();
-    setChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setInput(''); setLoading(true);
+  const sendChat = async () => {
+    if (!chatInput.trim()) return;
+    const txt = chatInput.trim(); setChatInput(""); setChatLoading(true);
+    setMessages(p=>[...p,{who:"u",text:txt}]);
     try {
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: userMsg }) });
-      const data = await res.json();
-      setChatMessages(prev => [...prev, { role: 'ai', text: data.text }]);
-    } catch {
-      setChatMessages(prev => [...prev, { role: 'ai', text: "Namaste. I am here to help you find the perfect drape. What occasion are you dressing for?" }]);
-    }
-    setLoading(false);
+      const r = await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:txt})});
+      const d = await r.json();
+      setMessages(p=>[...p,{who:"r",text:d.text}]);
+    } catch { setMessages(p=>[...p,{who:"r",text:"Namaste. What occasion are you dressing for? I shall find you the perfect drape."}]); }
+    setChatLoading(false);
   };
 
-  const simulateCheckout = () => {
-    setOrderComplete(true);
-    setTimeout(() => { setCart([]); setIsCartOpen(false); setOrderComplete(false); }, 4000);
+  const checkout = () => {
+    setOrderDone(true);
+    setTimeout(()=>{ setCart([]); setCartOpen(false); setOrderDone(false); },4200);
   };
 
-  const total = cart.reduce((s, i) => s + i.price, 0);
+  const total = cart.reduce((s,i)=>s+i.price,0);
 
   return (
     <>
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=DM+Sans:wght@200;300;400;500&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Italiana&family=Epilogue:wght@200;300;400;500&family=EB+Garamond:ital,wght@0,400;1,400&display=swap');
 
-      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+      :root{
+        --saffron:#F2E8D5;
+        --paper:  #FBF7F0;
+        --turmeric:#C8922A;
+        --clay:   #8B3A2A;
+        --indigo: #1B2B52;
+        --smoke:  #6B6255;
+        --rule:   #E0D8CC;
+        --ink:    #1C1712;
+        --white:  #FEFDFB;
+      }
+      html,body{height:100%}
+      body{font-family:'Epilogue',sans-serif;background:var(--paper);color:var(--ink);overflow-x:hidden}
 
-      :root {
-        --bone:   #F5F0E8;
-        --ivory:  #FDFBF7;
-        --ink:    #1A1714;
-        --indigo: #2C3157;
-        --copper: #9B6A3C;
-        --cop2:   #C4865A;
-        --dust:   #C8BBA8;
-        --mist:   #EDE8DF;
-        --rule:   #DDD8CE;
-        --serif:  'Playfair Display', Georgia, serif;
-        --sans:   'DM Sans', sans-serif;
+      /* ─── SCROLLBAR ─── */
+      ::-webkit-scrollbar{width:3px}
+      ::-webkit-scrollbar-track{background:var(--saffron)}
+      ::-webkit-scrollbar-thumb{background:var(--turmeric)}
+
+      /* ─── TOP RIBBON ─── */
+      .ribbon{
+        background:var(--indigo);
+        height:32px;display:flex;align-items:center;overflow:hidden;
+      }
+      .ribbon-inner{
+        display:flex;white-space:nowrap;
+        animation:ribbonMove 24s linear infinite;
+      }
+      @keyframes ribbonMove{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+      .ribbon-seg{
+        font-family:'Epilogue',sans-serif;font-size:9px;font-weight:300;
+        letter-spacing:.42em;text-transform:uppercase;
+        color:rgba(251,247,240,.55);padding:0 56px;
+      }
+      .ribbon-gem{color:var(--turmeric);opacity:.7;margin:0 2px}
+
+      /* ─── NAV ─── */
+      .nav{
+        display:flex;align-items:center;justify-content:space-between;
+        padding:0 52px;height:68px;
+        border-bottom:1px solid var(--rule);
+        background:var(--paper);
+        position:sticky;top:0;z-index:60;
+      }
+      .nav-logo{cursor:pointer;text-align:center}
+      .nav-logo-en{
+        font-family:'Italiana',serif;font-size:26px;font-weight:400;
+        letter-spacing:.28em;text-transform:uppercase;color:var(--ink);
+        line-height:1;
+      }
+      .nav-logo-hi{
+        font-size:11px;letter-spacing:.25em;color:var(--turmeric);
+        font-family:'EB Garamond',serif;font-style:italic;
+        margin-top:1px;display:block;opacity:.8;
+      }
+      .nav-side{display:flex;gap:32px;list-style:none;align-items:center}
+      .nav-side a,.nav-side button{
+        font-size:9.5px;font-weight:300;letter-spacing:.32em;
+        text-transform:uppercase;color:var(--smoke);
+        text-decoration:none;cursor:pointer;
+        background:none;border:none;font-family:'Epilogue',sans-serif;
+        transition:color .2s;
+      }
+      .nav-side a:hover,.nav-side button:hover{color:var(--ink)}
+      .bag-pill{
+        display:inline-flex;align-items:center;gap:7px;
+        font-size:9.5px;font-weight:300;letter-spacing:.32em;
+        text-transform:uppercase;color:var(--smoke);
+        background:none;border:none;cursor:pointer;
+        font-family:'Epilogue',sans-serif;transition:color .2s;
+      }
+      .bag-pill:hover{color:var(--ink)}
+      .bag-num{
+        display:inline-flex;align-items:center;justify-content:center;
+        width:18px;height:18px;background:var(--clay);color:var(--white);
+        border-radius:50%;font-size:9px;
       }
 
-      html { cursor: none; }
-      body { font-family: var(--sans); background: var(--ivory); color: var(--ink); overflow-x: hidden; }
-
-      /* CURSOR */
-      .cursor {
-        position: fixed; pointer-events: none; z-index: 9999;
-        transform: translate(-50%,-50%);
-        width: 9px; height: 9px; border-radius: 50%;
-        background: var(--copper); mix-blend-mode: multiply;
-        transition: width .22s ease, height .22s ease, background .22s;
+      /* ─── HERO ─── */
+      .hero{
+        display:grid;grid-template-columns:45fr 55fr;
+        height:calc(100vh - 100px);min-height:560px;
+      }
+      .hero-text{
+        display:flex;flex-direction:column;justify-content:center;
+        padding:72px 64px 72px 52px;border-right:1px solid var(--rule);
+        position:relative;
+      }
+      .hero-year{
+        font-size:9px;letter-spacing:.58em;text-transform:uppercase;
+        color:var(--turmeric);font-weight:300;margin-bottom:36px;
+        display:flex;align-items:center;gap:14px;
+      }
+      .hero-year::before{content:'';display:block;width:24px;height:1px;background:var(--turmeric)}
+      .hero-h1{
+        font-family:'Italiana',serif;
+        font-size:clamp(52px,7vw,96px);
+        font-weight:400;line-height:.96;
+        letter-spacing:.01em;color:var(--ink);
+        margin-bottom:32px;
+      }
+      .hero-h1 .accent{color:var(--clay)}
+      .hero-body{
+        font-size:12px;font-weight:300;line-height:2;
+        color:var(--smoke);max-width:340px;
+        margin-bottom:52px;letter-spacing:.03em;
+      }
+      .hero-actions{display:flex;gap:12px;align-items:center}
+      .cta-fill{
+        font-size:9px;letter-spacing:.4em;text-transform:uppercase;
+        background:var(--indigo);color:var(--saffron);
+        border:none;padding:14px 28px;cursor:pointer;
+        font-family:'Epilogue',sans-serif;font-weight:300;
+        transition:background .25s,transform .15s;
+      }
+      .cta-fill:hover{background:var(--clay);transform:translateY(-1px)}
+      .cta-line{
+        font-size:9px;letter-spacing:.4em;text-transform:uppercase;
+        background:none;color:var(--smoke);
+        border:1px solid var(--rule);padding:14px 28px;cursor:pointer;
+        font-family:'Epilogue',sans-serif;font-weight:300;
+        transition:border-color .2s,color .2s;
+      }
+      .cta-line:hover{border-color:var(--smoke);color:var(--ink)}
+      .hero-footnote{
+        position:absolute;bottom:40px;left:52px;
+        font-size:8px;letter-spacing:.45em;text-transform:uppercase;
+        color:var(--rule);font-weight:300;
+      }
+      .hero-img-col{position:relative;overflow:hidden;background:var(--saffron)}
+      .hero-img{
+        width:100%;height:100%;object-fit:cover;
+        object-position:center top;
+        transition:transform 12s ease;
+        opacity:0;transition:opacity .6s ease,transform 12s ease;
+      }
+      .hero-img.loaded{opacity:1}
+      .hero-img-col:hover .hero-img{transform:scale(1.04)}
+      .hero-fold{
+        position:absolute;top:0;left:0;bottom:0;width:1px;
+        background:linear-gradient(to bottom,transparent 0%,rgba(28,23,18,.1) 50%,transparent 100%);
+      }
+      .hero-number{
+        position:absolute;top:40px;right:40px;
+        font-family:'Italiana',serif;font-size:120px;font-weight:400;
+        color:transparent;-webkit-text-stroke:1px rgba(251,247,240,.2);
+        line-height:1;pointer-events:none;user-select:none;
       }
 
-      /* TOP STRIP */
-      .strip { height: 34px; background: var(--indigo); overflow: hidden; display: flex; align-items: center; }
-      .strip-track { display: flex; animation: stripRun 22s linear infinite; white-space: nowrap; }
-      @keyframes stripRun { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-      .strip-item { font-size: 10px; font-weight: 300; letter-spacing: 0.38em; text-transform: uppercase; color: rgba(245,240,232,.65); padding: 0 52px; font-family: var(--sans); }
-      .strip-gem { color: var(--cop2); opacity: .55; }
-
-      /* NAV */
-      .nav {
-        display: grid; grid-template-columns: 1fr auto 1fr;
-        align-items: center; padding: 0 56px; height: 70px;
-        border-bottom: 1px solid var(--rule); background: var(--ivory);
-        position: sticky; top: 0; z-index: 50;
+      /* ─── LOOKBOOK STRIPS (HOME CATEGORIES) ─── */
+      .lookbook{display:flex;flex-direction:column}
+      .lb-divider{
+        display:flex;align-items:center;justify-content:space-between;
+        padding:28px 52px;border-bottom:1px solid var(--rule);
       }
-      .nav-l { display: flex; gap: 36px; list-style: none; }
-      .nav-r { display: flex; gap: 28px; justify-content: flex-end; align-items: center; list-style: none; }
-      .nav-l a, .nav-r a, .nav-bag-btn {
-        font-size: 10px; font-weight: 300; letter-spacing: 0.32em; text-transform: uppercase;
-        color: #777168; text-decoration: none; cursor: none; transition: color .2s;
-        background: none; border: none; font-family: var(--sans);
+      .lb-section-label{
+        font-size:9px;letter-spacing:.52em;text-transform:uppercase;
+        color:var(--turmeric);font-weight:300;
       }
-      .nav-l a:hover, .nav-r a:hover, .nav-bag-btn:hover { color: var(--ink); }
-      .nav-center { text-align: center; cursor: none; }
-      .nav-wm { font-family: var(--serif); font-size: 21px; font-weight: 400; letter-spacing: .38em; text-transform: uppercase; color: var(--ink); line-height: 1; }
-      .nav-sub { font-size: 7px; letter-spacing: .55em; text-transform: uppercase; color: var(--dust); font-weight: 300; margin-top: 3px; }
-      .bag-badge { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; background: var(--indigo); color: var(--bone); border-radius: 50%; font-size: 9px; margin-left: 7px; }
-
-      /* HERO */
-      .hero { display: grid; grid-template-columns: 1fr 1fr; height: calc(100vh - 104px); min-height: 560px; opacity: 0; transition: opacity .9s ease; }
-      .hero.vis { opacity: 1; }
-      .hero-l {
-        display: flex; flex-direction: column; justify-content: flex-end;
-        padding: 64px 72px 64px 56px; border-right: 1px solid var(--rule);
-        position: relative; overflow: hidden;
+      .lb-count{
+        font-size:9px;letter-spacing:.35em;text-transform:uppercase;
+        color:var(--rule);font-weight:300;
       }
-      .hero-l::before {
-        content: 'श्रीमती';
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-        font-family: var(--serif); font-size: clamp(80px,11vw,160px); font-weight: 700;
-        color: transparent; -webkit-text-stroke: 1px var(--mist);
-        line-height: 1; pointer-events: none; user-select: none; white-space: nowrap;
-        letter-spacing: .05em;
+
+      /* each category row */
+      .lb-row{
+        display:grid;grid-template-columns:1fr 1fr;
+        border-bottom:1px solid var(--rule);
+        min-height:440px;cursor:pointer;
+        position:relative;overflow:hidden;
       }
-      .hero-kicker { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; position: relative; }
-      .hero-kicker-line { width: 30px; height: 1px; background: var(--copper); }
-      .hero-kicker-txt { font-size: 9px; letter-spacing: .5em; text-transform: uppercase; color: var(--copper); font-weight: 400; }
-      .hero-h1 { font-family: var(--serif); font-size: clamp(40px,5vw,72px); font-weight: 400; line-height: 1.07; color: var(--ink); margin-bottom: 24px; position: relative; }
-      .hero-h1 em { font-style: italic; color: var(--indigo); }
-      .hero-p { font-size: 12px; font-weight: 300; line-height: 1.95; letter-spacing: .03em; color: #7A7060; max-width: 310px; margin-bottom: 44px; position: relative; }
-      .hero-btns { display: flex; gap: 12px; position: relative; }
-      .btn-primary { font-size: 9px; letter-spacing: .4em; text-transform: uppercase; background: var(--ink); color: var(--bone); border: none; padding: 14px 30px; cursor: none; font-family: var(--sans); font-weight: 400; transition: background .22s, transform .15s; }
-      .btn-primary:hover { background: var(--indigo); transform: translateY(-1px); }
-      .btn-ghost { font-size: 9px; letter-spacing: .4em; text-transform: uppercase; background: none; color: var(--ink); border: 1px solid var(--rule); padding: 14px 30px; cursor: none; font-family: var(--sans); font-weight: 300; transition: border-color .2s; }
-      .btn-ghost:hover { border-color: var(--ink); }
-      .hero-r { position: relative; overflow: hidden; }
-      .hero-img { width: 100%; height: 100%; object-fit: cover; object-position: center top; transition: transform 10s ease; }
-      .hero:hover .hero-img { transform: scale(1.04); }
-      .hero-cap { position: absolute; bottom: 28px; right: 24px; writing-mode: vertical-rl; font-size: 8px; letter-spacing: .48em; text-transform: uppercase; color: rgba(253,251,247,.45); font-weight: 300; }
+      .lb-row:nth-child(even){direction:rtl}
+      .lb-row:nth-child(even) .lb-row-text{direction:ltr}
+      .lb-row-img{
+        position:relative;overflow:hidden;
+        background:var(--saffron);
+      }
+      .lb-row-img img{
+        width:100%;height:100%;object-fit:cover;
+        filter:brightness(.88) saturate(.9);
+        transition:transform 1.6s cubic-bezier(.25,.46,.45,.94),filter 1s;
+      }
+      .lb-row:hover .lb-row-img img{
+        transform:scale(1.07);
+        filter:brightness(.78) saturate(1.05);
+      }
+      .lb-row-text{
+        display:flex;flex-direction:column;justify-content:center;
+        padding:64px 72px;border-left:1px solid var(--rule);
+        position:relative;background:var(--paper);
+        transition:background .4s;
+      }
+      .lb-row:nth-child(even) .lb-row-text{border-left:none;border-right:1px solid var(--rule)}
+      .lb-row:hover .lb-row-text{background:var(--saffron)}
+      .lb-idx{
+        font-family:'Italiana',serif;font-size:72px;font-weight:400;
+        color:var(--rule);line-height:1;margin-bottom:16px;
+        transition:color .3s;
+      }
+      .lb-row:hover .lb-idx{color:var(--turmeric)}
+      .lb-cat{
+        font-family:'Italiana',serif;
+        font-size:clamp(32px,3.5vw,52px);
+        font-weight:400;color:var(--ink);
+        letter-spacing:.02em;margin-bottom:10px;line-height:1.1;
+      }
+      .lb-origin{
+        font-size:9px;letter-spacing:.42em;text-transform:uppercase;
+        color:var(--turmeric);font-weight:300;margin-bottom:18px;
+      }
+      .lb-craft{
+        font-size:12px;font-weight:300;color:var(--smoke);
+        line-height:1.8;letter-spacing:.03em;max-width:260px;
+        margin-bottom:32px;
+      }
+      .lb-arrow{
+        display:inline-flex;align-items:center;gap:12px;
+        font-size:9px;letter-spacing:.4em;text-transform:uppercase;
+        color:var(--ink);font-weight:300;
+        opacity:0;transform:translateX(-8px);
+        transition:opacity .35s,transform .35s;
+      }
+      .lb-row:hover .lb-arrow{opacity:1;transform:translateX(0)}
+      .lb-arrow-line{
+        width:0;height:1px;background:var(--clay);
+        transition:width .4s cubic-bezier(.25,.46,.45,.94);
+      }
+      .lb-row:hover .lb-arrow-line{width:32px}
 
-      /* STAT BAR */
-      .statbar { display: flex; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
-      .stat-item { flex: 1; text-align: center; padding: 36px 20px; border-right: 1px solid var(--rule); }
-      .stat-item:last-child { border-right: none; }
-      .stat-n { font-family: var(--serif); font-size: 36px; font-weight: 400; color: var(--ink); line-height: 1; margin-bottom: 6px; }
-      .stat-label { font-size: 9px; letter-spacing: .4em; text-transform: uppercase; color: var(--dust); font-weight: 300; }
+      /* ─── INTERLUDE BAND ─── */
+      .interlude{
+        display:grid;grid-template-columns:1fr 1fr 1fr;
+        border-bottom:1px solid var(--rule);
+      }
+      .int-cell{
+        padding:48px 52px;border-right:1px solid var(--rule);
+        display:flex;flex-direction:column;gap:8px;
+      }
+      .int-cell:last-child{border-right:none}
+      .int-num{
+        font-family:'Italiana',serif;font-size:48px;font-weight:400;
+        color:var(--turmeric);line-height:1;
+      }
+      .int-label{
+        font-size:9px;letter-spacing:.42em;text-transform:uppercase;
+        color:var(--smoke);font-weight:300;
+      }
+      .int-desc{
+        font-family:'EB Garamond',serif;font-size:14px;font-style:italic;
+        color:var(--smoke);line-height:1.7;margin-top:4px;
+      }
 
-      /* COLLECTIONS */
-      .coll-section { padding: 80px 0 0; }
-      .coll-hdr { padding: 0 56px 48px; display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 1px solid var(--rule); }
-      .sec-kicker { font-size: 9px; letter-spacing: .5em; text-transform: uppercase; color: var(--copper); font-weight: 400; margin-bottom: 10px; }
-      .sec-h2 { font-family: var(--serif); font-size: clamp(30px,4vw,50px); font-weight: 400; line-height: 1.1; color: var(--ink); }
-      .sec-h2 em { font-style: italic; }
-      .coll-cnt { font-size: 9px; letter-spacing: .3em; text-transform: uppercase; color: var(--dust); font-weight: 300; }
+      /* ─── PRODUCT PAGE ─── */
+      .prod-wrapper{padding:0}
+      .prod-top-bar{
+        display:flex;align-items:center;justify-content:space-between;
+        padding:24px 52px;border-bottom:1px solid var(--rule);
+      }
+      .back-btn{
+        display:flex;align-items:center;gap:10px;
+        font-size:9px;letter-spacing:.38em;text-transform:uppercase;
+        color:var(--smoke);background:none;border:none;cursor:pointer;
+        font-family:'Epilogue',sans-serif;font-weight:300;transition:color .2s;
+      }
+      .back-btn:hover{color:var(--ink)}
+      .back-line{width:24px;height:1px;background:var(--rule);transition:width .25s}
+      .back-btn:hover .back-line{width:36px;background:var(--ink)}
+      .prod-count{
+        font-size:9px;letter-spacing:.4em;text-transform:uppercase;
+        color:var(--rule);font-weight:300;
+      }
 
-      /* BROADSHEET */
-      .broadsheet { }
-      .bs-row { display: grid; grid-template-columns: repeat(5,1fr); border-bottom: 1px solid var(--rule); }
-      .bs-row:last-child { border-bottom: none; }
-      .bs-cell { border-right: 1px solid var(--rule); overflow: hidden; cursor: none; position: relative; }
-      .bs-cell:last-child { border-right: none; }
-      .bs-row:first-child .bs-cell:first-child { grid-column: span 2; }
-      .bs-inner { position: relative; height: 340px; overflow: hidden; }
-      .bs-row:first-child .bs-cell:first-child .bs-inner { height: 480px; }
-      .bs-img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.82) saturate(.88); transition: transform 1.4s cubic-bezier(.25,.46,.45,.94), filter .8s; }
-      .bs-cell:hover .bs-img { transform: scale(1.07); filter: brightness(.72) saturate(1.05); }
-      .bs-grad { position: absolute; inset: 0; background: linear-gradient(to top, rgba(26,23,20,.78) 0%, rgba(26,23,20,.05) 55%, transparent 100%); }
-      .bs-body { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 22px; }
-      .bs-name { font-family: var(--serif); font-size: 16px; font-weight: 400; color: var(--ivory); letter-spacing: .04em; margin-bottom: 5px; }
-      .bs-row:first-child .bs-cell:first-child .bs-name { font-size: 22px; }
-      .bs-desc { font-size: 9px; letter-spacing: .06em; line-height: 1.6; color: rgba(245,240,232,.55); font-weight: 300; max-width: 220px; opacity: 0; transform: translateY(5px); transition: opacity .35s, transform .35s; }
-      .bs-cell:hover .bs-desc { opacity: 1; transform: translateY(0); }
-      .bs-tag { position: absolute; top: 16px; right: 16px; width: 28px; height: 28px; border: 1px solid rgba(245,240,232,.2); display: flex; align-items: center; justify-content: center; font-size: 11px; color: rgba(245,240,232,.5); opacity: 0; transform: translate(4px,-4px); transition: opacity .3s, transform .3s; }
-      .bs-cell:hover .bs-tag { opacity: 1; transform: translate(0,0); }
+      .prod-title-section{
+        padding:56px 52px 48px;
+        border-bottom:1px solid var(--rule);
+        display:grid;grid-template-columns:1fr auto;
+        align-items:end;gap:40px;
+      }
+      .prod-kicker{
+        font-size:9px;letter-spacing:.52em;text-transform:uppercase;
+        color:var(--turmeric);font-weight:300;margin-bottom:12px;
+      }
+      .prod-h2{
+        font-family:'Italiana',serif;
+        font-size:clamp(40px,6vw,80px);
+        font-weight:400;line-height:.96;color:var(--ink);
+      }
+      .prod-subtext{
+        font-family:'EB Garamond',serif;font-size:15px;font-style:italic;
+        color:var(--smoke);line-height:1.7;max-width:400px;
+        margin-top:16px;
+      }
+      .prod-tag-pair{text-align:right}
+      .prod-tag-num{
+        font-family:'Italiana',serif;font-size:64px;font-weight:400;
+        color:var(--rule);line-height:1;
+      }
+      .prod-tag-lbl{
+        font-size:8px;letter-spacing:.42em;text-transform:uppercase;
+        color:var(--rule);font-weight:300;display:block;
+      }
 
-      /* PRODUCT PAGE */
-      .prod-page { padding: 56px 56px 100px; }
-      .crumb { display: flex; align-items: center; gap: 14px; margin-bottom: 48px; }
-      .crumb-back { font-size: 9px; letter-spacing: .38em; text-transform: uppercase; color: var(--dust); background: none; border: none; cursor: none; font-family: var(--sans); font-weight: 300; transition: color .2s; }
-      .crumb-back:hover { color: var(--ink); }
-      .crumb-slash { color: var(--rule); }
-      .crumb-here { font-size: 9px; letter-spacing: .38em; text-transform: uppercase; color: var(--copper); font-weight: 400; }
-      .prod-hdr { display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 28px; border-bottom: 1px solid var(--rule); margin-bottom: 52px; }
-      .prod-title { font-family: var(--serif); font-size: clamp(32px,5vw,56px); font-weight: 400; line-height: 1.1; }
-      .prod-title em { font-style: italic; color: var(--indigo); }
-      .prod-right-meta { text-align: right; }
-      .prod-ct { font-size: 9px; letter-spacing: .4em; text-transform: uppercase; color: var(--dust); font-weight: 300; margin-bottom: 4px; }
-      .prod-hint { font-family: var(--serif); font-size: 14px; font-style: italic; color: var(--copper); }
+      /* product grid */
+      .p-grid{
+        display:grid;grid-template-columns:repeat(3,1fr);
+        gap:1px;background:var(--rule);
+      }
+      .p-card{background:var(--paper);overflow:hidden;cursor:pointer;position:relative}
+      .p-img-wrap{
+        aspect-ratio:3/4;overflow:hidden;position:relative;
+        background:var(--saffron);
+      }
+      .p-img{
+        width:100%;height:100%;object-fit:cover;
+        filter:saturate(.88);
+        transition:transform 1.8s cubic-bezier(.25,.46,.45,.94),filter .8s;
+      }
+      .p-card:hover .p-img{transform:scale(1.06);filter:saturate(1.05)}
+      .p-overlay{
+        position:absolute;inset:0;
+        background:rgba(28,23,18,0);
+        transition:background .4s;
+        display:flex;align-items:flex-end;
+      }
+      .p-card:hover .p-overlay{background:rgba(28,23,18,.55)}
+      .p-cta{
+        padding:20px;width:100%;
+        transform:translateY(100%);
+        transition:transform .38s cubic-bezier(.25,.46,.45,.94);
+        display:flex;justify-content:space-between;align-items:center;
+      }
+      .p-card:hover .p-cta{transform:translateY(0)}
+      .p-cta-name{
+        font-family:'Italiana',serif;font-size:16px;color:var(--saffron);
+        font-weight:400;
+      }
+      .p-cta-btn{
+        font-size:8px;letter-spacing:.36em;text-transform:uppercase;
+        background:var(--turmeric);color:var(--white);
+        border:none;padding:9px 16px;cursor:pointer;
+        font-family:'Epilogue',sans-serif;font-weight:300;
+        transition:background .2s;
+      }
+      .p-cta-btn:hover{background:var(--clay)}
+      .p-card-foot{
+        padding:16px 18px;display:flex;justify-content:space-between;align-items:center;
+        border-top:1px solid var(--rule);
+      }
+      .p-card-name{
+        font-family:'Italiana',serif;font-size:15px;font-weight:400;
+        color:var(--ink);letter-spacing:.03em;
+      }
+      .p-card-price{
+        font-size:12px;font-weight:300;color:var(--turmeric);letter-spacing:.05em;
+      }
 
-      /* PRODUCT GRID */
-      .p-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; }
-      .p-card { background: var(--mist); overflow: hidden; cursor: none; }
-      .p-img-wrap { aspect-ratio: 3/4; overflow: hidden; position: relative; }
-      .p-grid > .p-card:nth-child(1) .p-img-wrap { aspect-ratio: 2/2.5; }
-      .p-img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.9); transition: transform 1.8s cubic-bezier(.25,.46,.45,.94), filter .8s; }
-      .p-card:hover .p-img { transform: scale(1.06); filter: saturate(1.05); }
-      .p-panel { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(26,23,20,.88); padding: 18px 20px; transform: translateY(100%); transition: transform .4s cubic-bezier(.25,.46,.45,.94); display: flex; align-items: center; justify-content: space-between; }
-      .p-card:hover .p-panel { transform: translateY(0); }
-      .p-panel-name { font-family: var(--serif); font-size: 14px; font-weight: 400; color: var(--ivory); }
-      .p-add-btn { font-size: 8px; letter-spacing: .35em; text-transform: uppercase; background: var(--copper); color: var(--ivory); border: none; padding: 9px 16px; cursor: none; font-family: var(--sans); font-weight: 400; transition: background .2s; }
-      .p-add-btn:hover { background: var(--cop2); }
-      .p-foot { padding: 14px 16px; background: var(--ivory); border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; }
-      .p-name { font-family: var(--serif); font-size: 13px; font-weight: 400; letter-spacing: .03em; }
-      .p-price { font-size: 12px; font-weight: 300; color: var(--copper); letter-spacing: .06em; }
+      /* ─── CART DRAWER ─── */
+      .scrim{
+        position:fixed;inset:0;z-index:120;
+        background:rgba(28,23,18,.5);
+        backdrop-filter:blur(3px);
+        animation:scrimIn .28s ease;
+      }
+      @keyframes scrimIn{from{opacity:0}to{opacity:1}}
+      .drawer{
+        position:absolute;right:0;top:0;bottom:0;
+        width:420px;background:var(--paper);
+        display:flex;flex-direction:column;
+        border-left:1px solid var(--rule);
+        animation:drawIn .38s cubic-bezier(.25,.46,.45,.94);
+      }
+      @keyframes drawIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+      .d-head{
+        padding:32px 36px 22px;border-bottom:1px solid var(--rule);
+        display:flex;justify-content:space-between;align-items:flex-start;
+      }
+      .d-title{
+        font-family:'Italiana',serif;font-size:24px;font-weight:400;margin-bottom:3px;
+      }
+      .d-sub{
+        font-size:9px;letter-spacing:.36em;text-transform:uppercase;
+        color:var(--smoke);font-weight:300;
+      }
+      .d-close{
+        font-size:9px;letter-spacing:.32em;text-transform:uppercase;
+        background:none;border:none;cursor:pointer;
+        font-family:'Epilogue',sans-serif;color:var(--smoke);
+        transition:color .2s;
+      }
+      .d-close:hover{color:var(--ink)}
+      .d-items{flex:1;overflow-y:auto;padding:24px 36px}
+      .d-item{
+        display:flex;gap:14px;padding-bottom:22px;margin-bottom:22px;
+        border-bottom:1px solid var(--rule);
+      }
+      .d-thumb{width:62px;height:80px;object-fit:cover;background:var(--saffron);flex-shrink:0}
+      .d-name{font-family:'Italiana',serif;font-size:15px;margin-bottom:4px}
+      .d-price{font-size:11px;color:var(--turmeric);font-weight:300;letter-spacing:.05em;margin-bottom:10px}
+      .d-rm{
+        font-size:8px;letter-spacing:.32em;text-transform:uppercase;
+        background:none;border:none;cursor:pointer;
+        font-family:'Epilogue',sans-serif;color:var(--smoke);transition:color .2s;
+      }
+      .d-rm:hover{color:var(--clay)}
+      .d-foot{padding:20px 36px 36px;border-top:1px solid var(--rule)}
+      .d-total-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+      .d-total-lbl{font-size:9px;letter-spacing:.4em;text-transform:uppercase;color:var(--smoke);font-weight:300}
+      .d-total-val{font-family:'Italiana',serif;font-size:28px;font-weight:400}
+      .d-note{font-size:10px;color:var(--smoke);font-weight:300;margin-bottom:20px;line-height:1.5;letter-spacing:.03em}
+      .d-pay{
+        width:100%;background:var(--indigo);color:var(--saffron);
+        border:none;padding:16px;cursor:pointer;
+        font-size:9px;letter-spacing:.44em;text-transform:uppercase;
+        font-family:'Epilogue',sans-serif;font-weight:300;
+        transition:background .22s;
+      }
+      .d-pay:hover{background:var(--clay)}
+      .d-empty{
+        flex:1;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;gap:10px;
+      }
+      .d-empty-glyph{
+        font-family:'Italiana',serif;font-size:60px;color:var(--rule);
+      }
+      .d-empty-msg{font-size:9px;letter-spacing:.35em;text-transform:uppercase;color:var(--smoke);font-weight:300}
+      .d-success{
+        flex:1;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;gap:16px;text-align:center;padding:0 36px;
+      }
+      .d-ok{
+        width:56px;height:56px;border-radius:50%;
+        border:1px solid var(--turmeric);display:flex;align-items:center;justify-content:center;
+        font-size:20px;color:var(--turmeric);
+      }
+      .d-ok-title{font-family:'Italiana',serif;font-size:28px}
+      .d-ok-msg{font-size:11px;color:var(--smoke);font-weight:300;line-height:1.85;max-width:240px}
 
-      /* CART */
-      .cart-scrim { position: fixed; inset: 0; z-index: 110; background: rgba(26,23,20,.45); backdrop-filter: blur(4px); animation: fi .25s ease; }
-      @keyframes fi { from { opacity: 0; } to { opacity: 1; } }
-      .cart-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 430px; background: var(--ivory); display: flex; flex-direction: column; animation: sr .38s cubic-bezier(.25,.46,.45,.94); }
-      @keyframes sr { from { transform: translateX(100%); } to { transform: translateX(0); } }
-      .cart-head { padding: 34px 38px 22px; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: flex-start; }
-      .cart-ttl { font-family: var(--serif); font-size: 25px; font-weight: 400; margin-bottom: 3px; }
-      .cart-sub { font-size: 9px; letter-spacing: .35em; text-transform: uppercase; color: var(--dust); font-weight: 300; }
-      .cart-close { font-size: 9px; letter-spacing: .3em; text-transform: uppercase; background: none; border: none; cursor: none; font-family: var(--sans); color: var(--dust); transition: color .2s; }
-      .cart-close:hover { color: var(--ink); }
-      .cart-items { flex: 1; overflow-y: auto; padding: 28px 38px; }
-      .cart-item { display: flex; gap: 16px; padding-bottom: 24px; margin-bottom: 24px; border-bottom: 1px solid var(--rule); }
-      .cart-thumb { width: 64px; height: 84px; object-fit: cover; background: var(--bone); flex-shrink: 0; }
-      .c-name { font-family: var(--serif); font-size: 15px; font-weight: 400; margin-bottom: 4px; }
-      .c-price { font-size: 12px; color: var(--copper); font-weight: 300; letter-spacing: .05em; margin-bottom: 12px; }
-      .c-rm { font-size: 8px; letter-spacing: .32em; text-transform: uppercase; background: none; border: none; cursor: none; font-family: var(--sans); color: var(--dust); transition: color .2s; }
-      .c-rm:hover { color: var(--ink); }
-      .cart-foot { padding: 22px 38px 38px; border-top: 1px solid var(--rule); }
-      .cart-total-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-      .c-t-label { font-size: 9px; letter-spacing: .38em; text-transform: uppercase; color: var(--dust); font-weight: 300; }
-      .c-t-val { font-family: var(--serif); font-size: 27px; font-weight: 400; }
-      .cart-note-txt { font-size: 10px; color: var(--dust); font-weight: 300; letter-spacing: .04em; margin-bottom: 22px; line-height: 1.5; }
-      .pay-btn { width: 100%; background: var(--indigo); color: var(--bone); border: none; padding: 16px; cursor: none; font-size: 9px; letter-spacing: .42em; text-transform: uppercase; font-family: var(--sans); font-weight: 400; transition: background .2s; }
-      .pay-btn:hover { background: var(--ink); }
-      .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
-      .empty-glyph { font-family: var(--serif); font-size: 52px; color: var(--rule); font-style: italic; }
-      .empty-msg { font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--dust); font-weight: 300; }
-      .success-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; padding: 0 38px; }
-      .success-circle { width: 58px; height: 58px; border: 1px solid var(--copper); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--copper); }
-      .success-ttl { font-family: var(--serif); font-size: 28px; font-weight: 400; }
-      .success-msg { font-size: 11px; color: var(--dust); font-weight: 300; line-height: 1.8; max-width: 250px; }
+      /* ─── STYLIST CHAT ─── */
+      .stylist-wrap{
+        position:fixed;bottom:24px;right:24px;z-index:110;
+        display:flex;flex-direction:column;align-items:flex-end;gap:10px;
+      }
+      .chat-card{
+        width:340px;background:var(--paper);
+        border:1px solid var(--rule);
+        box-shadow:0 16px 56px rgba(28,23,18,.12);
+        display:flex;flex-direction:column;max-height:440px;
+        animation:chatUp .3s cubic-bezier(.25,.46,.45,.94);
+      }
+      @keyframes chatUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+      .chat-hd{
+        background:var(--indigo);padding:16px 20px;
+        display:flex;justify-content:space-between;align-items:center;flex-shrink:0;
+      }
+      .chat-lbl{font-size:8px;letter-spacing:.48em;text-transform:uppercase;color:rgba(251,247,240,.45);font-weight:300;margin-bottom:2px}
+      .chat-name{font-family:'Italiana',serif;font-size:20px;font-weight:400;color:var(--saffron)}
+      .chat-x{background:none;border:none;cursor:pointer;color:rgba(251,247,240,.35);font-size:16px;transition:color .2s}
+      .chat-x:hover{color:rgba(251,247,240,.85)}
+      .chat-body{
+        flex:1;overflow-y:auto;padding:16px 18px;
+        background:var(--saffron);
+        display:flex;flex-direction:column;gap:10px;
+      }
+      .bubble{max-width:88%;padding:10px 13px;line-height:1.65;font-size:12px}
+      .bubble.r{
+        background:var(--paper);border:1px solid var(--rule);
+        font-family:'EB Garamond',serif;font-size:13px;font-style:italic;
+        color:var(--ink);align-self:flex-start;
+      }
+      .bubble.u{
+        background:var(--indigo);color:rgba(251,247,240,.88);
+        font-weight:300;letter-spacing:.02em;align-self:flex-end;
+      }
+      .typing-row{display:flex;gap:4px;align-items:center;padding:10px 13px;background:var(--paper);border:1px solid var(--rule);align-self:flex-start}
+      .t-d{width:5px;height:5px;background:var(--rule);border-radius:50%;animation:td 1.2s ease-in-out infinite}
+      .t-d:nth-child(2){animation-delay:.2s}.t-d:nth-child(3){animation-delay:.4s}
+      @keyframes td{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-5px);opacity:1}}
+      .chat-input-row{
+        display:flex;align-items:center;gap:8px;padding:12px 14px;
+        border-top:1px solid var(--rule);background:var(--paper);flex-shrink:0;
+      }
+      .chat-inp{
+        flex:1;border:none;outline:none;background:transparent;
+        font-size:11px;font-family:'Epilogue',sans-serif;font-weight:300;
+        letter-spacing:.03em;color:var(--ink);
+      }
+      .chat-inp::placeholder{color:var(--rule)}
+      .chat-send{
+        font-size:8px;letter-spacing:.36em;text-transform:uppercase;
+        background:var(--turmeric);color:var(--white);border:none;padding:8px 14px;
+        cursor:pointer;font-family:'Epilogue',sans-serif;font-weight:300;
+        transition:background .2s;flex-shrink:0;
+      }
+      .chat-send:hover{background:var(--clay)}
+      .chat-fab{
+        width:50px;height:50px;border-radius:50%;
+        background:var(--indigo);border:none;cursor:pointer;
+        box-shadow:0 6px 24px rgba(27,43,82,.3);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+        transition:transform .2s,box-shadow .2s,background .2s;
+      }
+      .chat-fab:hover{transform:scale(1.1);background:var(--clay);box-shadow:0 10px 32px rgba(139,58,42,.35)}
+      .fab-lbl{font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:rgba(251,247,240,.65);font-weight:300;text-align:center;line-height:1.4}
 
-      /* STYLIST */
-      .stylist-area { position: fixed; bottom: 26px; right: 26px; z-index: 100; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-      .stylist-window { width: 344px; background: var(--ivory); border: 1px solid var(--rule); box-shadow: 0 20px 60px rgba(26,23,20,.13); display: flex; flex-direction: column; max-height: 450px; animation: fu .3s cubic-bezier(.25,.46,.45,.94); }
-      @keyframes fu { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      .s-hd { background: var(--indigo); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-      .s-hd-lbl { font-size: 8px; letter-spacing: .48em; text-transform: uppercase; color: rgba(245,240,232,.5); font-weight: 300; margin-bottom: 2px; }
-      .s-hd-name { font-family: var(--serif); font-size: 19px; font-weight: 400; font-style: italic; color: var(--bone); }
-      .s-close { background: none; border: none; cursor: none; color: rgba(245,240,232,.35); font-size: 15px; transition: color .2s; }
-      .s-close:hover { color: rgba(245,240,232,.9); }
-      .s-msgs { flex: 1; overflow-y: auto; padding: 18px 20px; background: var(--bone); display: flex; flex-direction: column; gap: 12px; }
-      .msg { max-width: 86%; padding: 10px 14px; line-height: 1.65; }
-      .msg.ai { background: var(--ivory); border: 1px solid var(--rule); font-family: var(--serif); font-size: 13px; font-style: italic; color: var(--ink); align-self: flex-start; }
-      .msg.user { background: var(--indigo); color: var(--bone); font-size: 11px; font-weight: 300; letter-spacing: .03em; align-self: flex-end; }
-      .typing { display: flex; gap: 4px; align-items: center; padding: 10px 14px; background: var(--ivory); border: 1px solid var(--rule); align-self: flex-start; }
-      .td { width: 5px; height: 5px; background: var(--dust); border-radius: 50%; animation: tb 1.2s ease-in-out infinite; }
-      .td:nth-child(2) { animation-delay: .2s; } .td:nth-child(3) { animation-delay: .4s; }
-      @keyframes tb { 0%,80%,100% { transform: translateY(0); opacity: .4; } 40% { transform: translateY(-5px); opacity: 1; } }
-      .s-input-row { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--rule); background: var(--ivory); flex-shrink: 0; }
-      .s-input { flex: 1; border: none; outline: none; background: transparent; font-size: 11px; font-family: var(--sans); font-weight: 300; letter-spacing: .03em; color: var(--ink); }
-      .s-input::placeholder { color: var(--dust); }
-      .s-send { font-size: 8px; letter-spacing: .36em; text-transform: uppercase; background: var(--copper); color: var(--ivory); border: none; padding: 9px 14px; cursor: none; font-family: var(--sans); font-weight: 400; transition: background .2s; flex-shrink: 0; }
-      .s-send:hover { background: var(--cop2); }
-      .s-fab { width: 50px; height: 50px; border-radius: 50%; background: var(--indigo); border: none; cursor: none; box-shadow: 0 6px 26px rgba(44,49,87,.32); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; transition: transform .2s, box-shadow .2s; }
-      .s-fab:hover { transform: scale(1.08); box-shadow: 0 10px 36px rgba(44,49,87,.4); }
-      .fab-t { font-size: 7px; letter-spacing: .17em; text-transform: uppercase; color: rgba(245,240,232,.72); font-weight: 300; text-align: center; line-height: 1.4; }
+      /* ─── FOOTER ─── */
+      footer{background:var(--ink);color:rgba(251,247,240,.45);padding:80px 52px 48px}
+      .f-top{
+        display:grid;grid-template-columns:2fr 1fr 1fr 1fr;
+        gap:52px;max-width:1260px;margin:0 auto;
+        padding-bottom:52px;border-bottom:1px solid rgba(251,247,240,.07);margin-bottom:36px;
+      }
+      .f-logo-en{font-family:'Italiana',serif;font-size:28px;letter-spacing:.28em;text-transform:uppercase;color:var(--saffron);line-height:1;margin-bottom:3px}
+      .f-logo-hi{font-family:'EB Garamond',serif;font-size:13px;font-style:italic;color:var(--turmeric);opacity:.75;margin-bottom:18px;display:block}
+      .f-about{font-size:11px;font-weight:300;line-height:1.95;max-width:280px;color:rgba(251,247,240,.32);letter-spacing:.02em}
+      .f-hd{font-size:9px;letter-spacing:.44em;text-transform:uppercase;color:rgba(251,247,240,.72);font-weight:300;margin-bottom:18px}
+      .f-link{display:block;font-size:11px;font-weight:300;letter-spacing:.03em;color:rgba(251,247,240,.32);text-decoration:none;margin-bottom:12px;cursor:pointer;transition:color .2s}
+      .f-link:hover{color:var(--turmeric)}
+      .f-base{max-width:1260px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+      .f-copy{font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:rgba(251,247,240,.15)}
+      .f-ornament{font-family:'Italiana',serif;font-size:14px;color:var(--turmeric);opacity:.3;letter-spacing:.2em}
 
-      /* FOOTER */
-      footer { background: var(--ink); color: rgba(245,240,232,.48); padding: 80px 56px 48px; }
-      .f-grid { display: grid; grid-template-columns: 2.2fr 1fr 1fr 1fr; gap: 52px; max-width: 1280px; margin: 0 auto; padding-bottom: 52px; border-bottom: 1px solid rgba(245,240,232,.07); margin-bottom: 36px; }
-      .f-wm { font-family: var(--serif); font-size: 26px; font-weight: 400; letter-spacing: .3em; text-transform: uppercase; color: var(--bone); margin-bottom: 4px; }
-      .f-origin { font-size: 8px; letter-spacing: .52em; text-transform: uppercase; color: var(--cop2); opacity: .75; margin-bottom: 18px; }
-      .f-desc { font-size: 11px; line-height: 1.9; font-weight: 300; max-width: 270px; color: rgba(245,240,232,.35); }
-      .f-col-hd { font-size: 9px; letter-spacing: .44em; text-transform: uppercase; color: rgba(245,240,232,.78); font-weight: 400; margin-bottom: 18px; }
-      .f-lnk { display: block; font-size: 11px; font-weight: 300; letter-spacing: .03em; color: rgba(245,240,232,.35); text-decoration: none; margin-bottom: 12px; cursor: none; transition: color .2s; }
-      .f-lnk:hover { color: var(--cop2); }
-      .f-base { max-width: 1280px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-      .f-copy { font-size: 9px; letter-spacing: .3em; text-transform: uppercase; color: rgba(245,240,232,.18); }
-      .f-rule { width: 44px; height: 1px; background: var(--copper); opacity: .28; }
-
-      @media (max-width: 900px) {
-        .nav { grid-template-columns: 1fr auto; padding: 0 20px; }
-        .nav-l { display: none; }
-        .hero { grid-template-columns: 1fr; height: auto; }
-        .hero-r { height: 55vw; }
-        .hero-l { padding: 44px 20px; }
-        .hero-l::before { display: none; }
-        .statbar { flex-wrap: wrap; }
-        .stat-item { min-width: 50%; border-bottom: 1px solid var(--rule); }
-        .coll-hdr { padding: 0 20px 36px; }
-        .bs-row { grid-template-columns: repeat(2,1fr); }
-        .bs-row .bs-cell:nth-child(n) { grid-column: span 1; }
-        .bs-row:first-child .bs-cell:first-child { grid-column: span 2; }
-        .prod-page { padding: 40px 20px 80px; }
-        .p-grid { grid-template-columns: repeat(2,1fr); }
-        .cart-panel { width: 100%; max-width: 420px; }
-        .stylist-window { width: calc(100vw - 40px); }
-        footer { padding: 56px 20px 40px; }
-        .f-grid { grid-template-columns: 1fr; gap: 28px; }
+      /* ─── RESPONSIVE ─── */
+      @media(max-width:900px){
+        .nav{padding:0 20px}
+        .nav-side{gap:18px}
+        .hero{grid-template-columns:1fr;height:auto}
+        .hero-img-col{height:55vw}
+        .hero-text{padding:44px 20px 44px}
+        .lb-row{grid-template-columns:1fr;min-height:auto}
+        .lb-row-text{padding:36px 20px;border:none;border-top:1px solid var(--rule)}
+        .lb-row:nth-child(even){direction:ltr}
+        .interlude{grid-template-columns:1fr}
+        .int-cell{border-right:none;border-bottom:1px solid var(--rule)}
+        .prod-title-section{grid-template-columns:1fr;padding:36px 20px 28px}
+        .p-grid{grid-template-columns:repeat(2,1fr)}
+        .prod-top-bar{padding:20px}
+        .drawer{width:100%;max-width:420px}
+        .chat-card{width:calc(100vw - 40px)}
+        footer{padding:56px 20px 40px}
+        .f-top{grid-template-columns:1fr;gap:28px}
+        .lb-divider{padding:24px 20px}
       }
     `}</style>
 
-    {/* CURSOR */}
-    <div className="cursor" style={{ left: cursorPos.x, top: cursorPos.y }} />
-
-    {/* TOP STRIP */}
-    <div className="strip">
-      <div className="strip-track">
-        {[...Array(8)].map((_,i) => (
-          <span key={i} className="strip-item">
-            Free Shipping above ₹15,000 <span className="strip-gem">✦</span> Handwoven by Master Artisans <span className="strip-gem">✦</span> Authenticity Certificate with Every Saree <span className="strip-gem">✦</span>
+    {/* RIBBON */}
+    <div className="ribbon">
+      <div className="ribbon-inner">
+        {[...Array(8)].map((_,i)=>(
+          <span key={i} className="ribbon-seg">
+            Handwoven Heritage Since 1984
+            <span className="ribbon-gem"> ✦ </span>
+            Free Shipping Above ₹15,000
+            <span className="ribbon-gem"> ✦ </span>
+            Authentic Weaves with Certificate
+            <span className="ribbon-gem"> ✦ </span>
           </span>
         ))}
       </div>
@@ -342,100 +635,104 @@ export default function Home() {
 
     {/* NAV */}
     <nav className="nav">
-      <ul className="nav-l">
-        <li><a onClick={() => setViewingCategory(null)}>Collections</a></li>
+      <ul className="nav-side">
+        <li><a onClick={()=>setViewingCategory(null)}>Collections</a></li>
         <li><a>Heritage</a></li>
         <li><a>Atelier</a></li>
       </ul>
-      <div className="nav-center" onClick={() => setViewingCategory(null)}>
-        <div className="nav-wm">Shreemati</div>
-        <div className="nav-sub">Jodhpur · Est. 1984</div>
+
+      <div className="nav-logo" onClick={()=>setViewingCategory(null)}>
+        <span className="nav-logo-en">Shreemati</span>
+        <span className="nav-logo-hi">श्रीमती — Jodhpur</span>
       </div>
-      <ul className="nav-r">
-        <li><a>Care Guide</a></li>
+
+      <ul className="nav-side" style={{justifyContent:"flex-end"}}>
+        <li><a onClick={()=>setChatOpen(v=>!v)}>Stylist</a></li>
         <li>
-          <button className="nav-bag-btn" onClick={() => setIsCartOpen(true)}>
-            Bag {cart.length > 0 && <span className="bag-badge">{cart.length}</span>}
+          <button className="bag-pill" onClick={()=>setCartOpen(true)}>
+            Bag {cart.length>0 && <span className="bag-num">{cart.length}</span>}
           </button>
         </li>
       </ul>
     </nav>
 
     {/* STYLIST */}
-    <div className="stylist-area">
-      {isChatOpen && (
-        <div className="stylist-window">
-          <div className="s-hd">
+    <div className="stylist-wrap">
+      {chatOpen && (
+        <div className="chat-card">
+          <div className="chat-hd">
             <div>
-              <div className="s-hd-lbl">Personal Stylist</div>
-              <div className="s-hd-name">Radhika</div>
+              <div className="chat-lbl">Personal Stylist</div>
+              <div className="chat-name">Radhika</div>
             </div>
-            <button className="s-close" onClick={() => setIsChatOpen(false)}>✕</button>
+            <button className="chat-x" onClick={()=>setChatOpen(false)}>✕</button>
           </div>
-          <div className="s-msgs">
-            {chatMessages.length === 0 && (
-              <div className="msg ai">Namaste. I'm Radhika — your personal drape consultant. Tell me the occasion, and I shall guide you to the perfect weave.</div>
+          <div className="chat-body">
+            {messages.length===0 && (
+              <div className="bubble r">Namaste. I'm Radhika, your personal drape consultant. What occasion are you dressing for?</div>
             )}
-            {chatMessages.map((m, i) => (
-              <div key={i} className={`msg ${m.role}`}>{m.text}</div>
+            {messages.map((m,i)=>(
+              <div key={i} className={`bubble ${m.who}`}>{m.text}</div>
             ))}
-            {loading && <div className="typing"><div className="td"/><div className="td"/><div className="td"/></div>}
-            <div ref={chatEndRef} />
+            {chatLoading && <div className="typing-row"><div className="t-d"/><div className="t-d"/><div className="t-d"/></div>}
+            <div ref={chatEnd}/>
           </div>
-          <div className="s-input-row">
-            <input className="s-input" placeholder="Ask about weaves, occasions…" value={input} onChange={e => setInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && askAI()} />
-            <button className="s-send" onClick={askAI}>Send</button>
+          <div className="chat-input-row">
+            <input className="chat-inp" placeholder="Ask about weaves, occasions…" value={chatInput}
+              onChange={e=>setChatInput(e.target.value)} onKeyPress={e=>e.key==="Enter"&&sendChat()}/>
+            <button className="chat-send" onClick={sendChat}>Send</button>
           </div>
         </div>
       )}
-      <button className="s-fab" onClick={() => setIsChatOpen(v => !v)}>
-        <span className="fab-t">Your<br/>Stylist</span>
+      <button className="chat-fab" onClick={()=>setChatOpen(v=>!v)}>
+        <span className="fab-lbl">Your<br/>Stylist</span>
       </button>
     </div>
 
     {/* CART */}
-    {isCartOpen && (
-      <div className="cart-scrim" onClick={e => { if(e.target === e.currentTarget) setIsCartOpen(false); }}>
-        <div className="cart-panel">
-          <div className="cart-head">
+    {cartOpen && (
+      <div className="scrim" onClick={e=>{if(e.target===e.currentTarget)setCartOpen(false)}}>
+        <div className="drawer">
+          <div className="d-head">
             <div>
-              <div className="cart-ttl">Selection</div>
-              <div className="cart-sub">{cart.length} {cart.length === 1 ? 'piece' : 'pieces'}</div>
+              <div className="d-title">Your Selection</div>
+              <div className="d-sub">{cart.length} {cart.length===1?"piece":"pieces"}</div>
             </div>
-            <button className="cart-close" onClick={() => setIsCartOpen(false)}>Close</button>
+            <button className="d-close" onClick={()=>setCartOpen(false)}>Close</button>
           </div>
-          {orderComplete ? (
-            <div className="success-state">
-              <div className="success-circle">✓</div>
-              <div className="success-ttl">Order Received</div>
-              <p className="success-msg">Your drapes are being prepared with the utmost care. A confirmation will follow shortly.</p>
+
+          {orderDone ? (
+            <div className="d-success">
+              <div className="d-ok">✓</div>
+              <div className="d-ok-title">Order Received</div>
+              <p className="d-ok-msg">Your drapes are being prepared with care. A confirmation follows shortly.</p>
             </div>
-          ) : cart.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-glyph">◇</div>
-              <div className="empty-msg">Your selection is empty</div>
+          ) : cart.length===0 ? (
+            <div className="d-empty">
+              <div className="d-empty-glyph">◇</div>
+              <div className="d-empty-msg">Your selection is empty</div>
             </div>
           ) : (
             <>
-              <div className="cart-items">
-                {cart.map((item, idx) => (
-                  <div key={idx} className="cart-item">
-                    <img src={item.image_url} className="cart-thumb" alt={item.name} />
+              <div className="d-items">
+                {cart.map((item,idx)=>(
+                  <div key={idx} className="d-item">
+                    <img src={item.image_url} className="d-thumb" alt={item.name}/>
                     <div style={{flex:1}}>
-                      <div className="c-name">{item.name}</div>
-                      <div className="c-price">₹{item.price.toLocaleString('en-IN')}</div>
-                      <button className="c-rm" onClick={() => removeFromCart(idx)}>Remove</button>
+                      <div className="d-name">{item.name}</div>
+                      <div className="d-price">₹{item.price.toLocaleString("en-IN")}</div>
+                      <button className="d-rm" onClick={()=>removeFromCart(idx)}>Remove</button>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="cart-foot">
-                <div className="cart-total-row">
-                  <span className="c-t-label">Subtotal</span>
-                  <span className="c-t-val">₹{total.toLocaleString('en-IN')}</span>
+              <div className="d-foot">
+                <div className="d-total-row">
+                  <span className="d-total-lbl">Subtotal</span>
+                  <span className="d-total-val">₹{total.toLocaleString("en-IN")}</span>
                 </div>
-                <p className="cart-note-txt">Shipping & duties calculated at checkout</p>
-                <button className="pay-btn" onClick={simulateCheckout}>Proceed to Payment</button>
+                <p className="d-note">Shipping & duties calculated at checkout</p>
+                <button className="d-pay" onClick={checkout}>Proceed to Payment</button>
               </div>
             </>
           )}
@@ -443,157 +740,170 @@ export default function Home() {
       </div>
     )}
 
-    {/* PAGE */}
+    {/* ─── MAIN CONTENT ─── */}
     {!viewingCategory ? (
       <>
         {/* HERO */}
-        <section className={`hero ${heroVisible ? 'vis' : ''}`}>
-          <div className="hero-l">
-            <div className="hero-kicker">
-              <div className="hero-kicker-line"/>
-              <span className="hero-kicker-txt">The House of Handwoven Heritage</span>
-            </div>
+        <section className="hero" style={{opacity: mounted ? 1 : 0, transition:"opacity .9s ease"}}>
+          <div className="hero-text">
+            <div className="hero-year">Est. 1984 · Jodhpur, Rajasthan</div>
             <h1 className="hero-h1">
-              Where <em>Thread</em><br/>Becomes<br/>Legacy
+              The Art of<br/>
+              the <span className="accent">Sacred</span><br/>
+              Drape
             </h1>
-            <p className="hero-p">
-              Forty years of preserving India's most exquisite weaves — curated for the woman who understands craft.
+            <p className="hero-body">
+              Heritage weaves, handcrafted by master artisans across India's most storied textile belts. Every thread carries memory. Every drape tells a story.
             </p>
-            <div className="hero-btns">
-              <button className="btn-primary" onClick={() => document.getElementById('coll')?.scrollIntoView({behavior:'smooth'})}>View Collections</button>
-              <button className="btn-ghost" onClick={() => setIsChatOpen(true)}>Speak with Radhika</button>
+            <div className="hero-actions">
+              <button className="cta-fill" onClick={()=>document.getElementById("lookbook")?.scrollIntoView({behavior:"smooth"})}>
+                Explore Collections
+              </button>
+              <button className="cta-line" onClick={()=>setChatOpen(true)}>
+                Speak with Radhika
+              </button>
             </div>
+            <div className="hero-footnote">Jodhpur · Heritage · Craft · 1984</div>
           </div>
-          <div className="hero-r">
-            <img src="https://images.pexels.com/photos/15725333/pexels-photo-15725333.jpeg?auto=compress&w=1200" className="hero-img" alt="Heritage Sarees" />
-            <div className="hero-cap">Jodhpur · Rajasthan · 1984</div>
+          <div className="hero-img-col">
+            <img
+              className={`hero-img ${mounted?"loaded":""}`}
+              src="https://images.pexels.com/photos/15725333/pexels-photo-15725333.jpeg?auto=compress&w=1400"
+              alt="Shreemati Heritage"
+              onLoad={e=>(e.target as HTMLImageElement).classList.add("loaded")}
+            />
+            <div className="hero-fold"/>
+            <div className="hero-number">I</div>
           </div>
         </section>
 
-        {/* STAT BAR */}
-        <div className="statbar">
-          {[{val:'40+',lbl:'Years of Heritage'},{val:'200+',lbl:'Artisan Families'},{val:'10',lbl:'Distinct Weaves'},{val:'∞',lbl:'Stories Woven'}].map(s => (
-            <div key={s.lbl} className="stat-item">
-              <div className="stat-n">{s.val}</div>
-              <div className="stat-label">{s.lbl}</div>
+        {/* INTERLUDE */}
+        <div className="interlude">
+          {[
+            {num:"40+", label:"Years of Heritage", desc:"Four decades of preserving India's finest handwoven traditions."},
+            {num:"200+", label:"Artisan Families",  desc:"Master weavers across Rajasthan, Tamil Nadu, Gujarat & beyond."},
+            {num:"10",  label:"Distinct Weaves",   desc:"From Banarasi zari to Patola double-ikat — each a world apart."},
+          ].map(it=>(
+            <div key={it.label} className="int-cell">
+              <div className="int-num">{it.num}</div>
+              <div className="int-label">{it.label}</div>
+              <div className="int-desc">{it.desc}</div>
             </div>
           ))}
         </div>
 
-        {/* COLLECTIONS */}
-        <section id="coll" className="coll-section">
-          <div className="coll-hdr">
-            <div>
-              <div className="sec-kicker">Our Collections</div>
-              <h2 className="sec-h2">The <em>Weaves</em></h2>
-            </div>
-            <div className="coll-cnt">{CATEGORIES.length} Collections</div>
+        {/* LOOKBOOK STRIPS */}
+        <section id="lookbook" className="lookbook">
+          <div className="lb-divider">
+            <div className="lb-section-label">The Collections</div>
+            <div className="lb-count">{CATEGORIES.length} Weaves</div>
           </div>
-          <div className="broadsheet">
-            <div className="bs-row">
-              {CATEGORIES.slice(0,4).map(cat => (
-                <div key={cat} className="bs-cell" onClick={() => setViewingCategory(cat)}>
-                  <div className="bs-inner">
-                    <img src={sarees.find(s=>s.category===cat)?.image_url||'https://images.pexels.com/photos/15725333/pexels-photo-15725333.jpeg'} className="bs-img" alt={cat}/>
-                    <div className="bs-grad"/>
-                    <div className="bs-tag">↗</div>
-                    <div className="bs-body">
-                      <div className="bs-name">{cat}</div>
-                      <div className="bs-desc">{CATEGORY_DESC[cat]}</div>
-                    </div>
-                  </div>
+
+          {CATEGORIES.map((cat, i) => (
+            <div
+              key={cat}
+              className="lb-row"
+              ref={el=>catRefs.current[i]=el}
+              onClick={()=>setViewingCategory(cat)}
+            >
+              <div className="lb-row-img">
+                <img
+                  src={sarees.find(s=>s.category===cat)?.image_url || "https://images.pexels.com/photos/15725333/pexels-photo-15725333.jpeg"}
+                  alt={cat}
+                />
+              </div>
+              <div className="lb-row-text">
+                <div className="lb-idx">{String(i+1).padStart(2,"0")}</div>
+                <div className="lb-cat">{cat}</div>
+                <div className="lb-origin">{CAT_META[cat]?.origin}</div>
+                <div className="lb-craft">{CAT_META[cat]?.craft}</div>
+                <div className="lb-arrow">
+                  <div className="lb-arrow-line"/>
+                  View Collection
                 </div>
-              ))}
+              </div>
             </div>
-            <div className="bs-row">
-              {CATEGORIES.slice(4).map(cat => (
-                <div key={cat} className="bs-cell" onClick={() => setViewingCategory(cat)}>
-                  <div className="bs-inner">
-                    <img src={sarees.find(s=>s.category===cat)?.image_url||'https://images.pexels.com/photos/15725333/pexels-photo-15725333.jpeg'} className="bs-img" alt={cat}/>
-                    <div className="bs-grad"/>
-                    <div className="bs-tag">↗</div>
-                    <div className="bs-body">
-                      <div className="bs-name">{cat}</div>
-                      <div className="bs-desc">{CATEGORY_DESC[cat]}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          ))}
         </section>
       </>
     ) : (
-      /* PRODUCTS */
-      <section className="prod-page">
-        <div className="crumb">
-          <button className="crumb-back" onClick={() => setViewingCategory(null)}>← Collections</button>
-          <span className="crumb-slash">/</span>
-          <span className="crumb-here">{viewingCategory}</span>
+      /* ─── PRODUCT PAGE ─── */
+      <div className="prod-wrapper">
+        <div className="prod-top-bar">
+          <button className="back-btn" onClick={()=>setViewingCategory(null)}>
+            <div className="back-line"/>
+            Back to Collections
+          </button>
+          <div className="prod-count">{inventory.length} Pieces Available</div>
         </div>
-        <div className="prod-hdr">
+
+        <div className="prod-title-section">
           <div>
-            <div className="sec-kicker">{CATEGORY_DESC[viewingCategory!] || viewingCategory}</div>
-            <h2 className="prod-title">The <em>{viewingCategory}</em><br/>Collection</h2>
+            <div className="prod-kicker">{CAT_META[viewingCategory]?.origin} · {CAT_META[viewingCategory]?.craft}</div>
+            <h2 className="prod-h2">{viewingCategory}</h2>
+            <p className="prod-subtext">Each piece is handwoven, unique, and comes with an authenticity certificate.</p>
           </div>
-          <div className="prod-right-meta">
-            <div className="prod-ct">{categoryInventory.length} Pieces</div>
-            <div className="prod-hint">Each made by hand</div>
+          <div className="prod-tag-pair">
+            <div className="prod-tag-num">{String(CATEGORIES.indexOf(viewingCategory)+1).padStart(2,"0")}</div>
+            <span className="prod-tag-lbl">Collection</span>
           </div>
         </div>
+
         <div className="p-grid">
-          {categoryInventory.map(s => (
+          {inventory.map(s=>(
             <div key={s.id} className="p-card">
               <div className="p-img-wrap">
                 <img src={s.image_url} className="p-img" alt={s.name}/>
-                <div className="p-panel">
-                  <span className="p-panel-name">{s.name}</span>
-                  <button className="p-add-btn" onClick={() => addToCart(s)}>Add</button>
+                <div className="p-overlay">
+                  <div className="p-cta">
+                    <span className="p-cta-name">{s.name}</span>
+                    <button className="p-cta-btn" onClick={()=>addToCart(s)}>Add</button>
+                  </div>
                 </div>
               </div>
-              <div className="p-foot">
-                <span className="p-name">{s.name}</span>
-                <span className="p-price">₹{s.price.toLocaleString('en-IN')}</span>
+              <div className="p-card-foot">
+                <span className="p-card-name">{s.name}</span>
+                <span className="p-card-price">₹{s.price.toLocaleString("en-IN")}</span>
               </div>
             </div>
           ))}
         </div>
-      </section>
+      </div>
     )}
 
     {/* FOOTER */}
     <footer>
-      <div className="f-grid">
+      <div className="f-top">
         <div>
-          <div className="f-wm">Shreemati</div>
-          <div className="f-origin">Heritage Weaves · Jodhpur</div>
-          <p className="f-desc">Since 1984, Shreemati has been a devoted custodian of India's handwoven traditions, preserving the artistry of over 200 artisan families across Rajasthan.</p>
+          <div className="f-logo-en">Shreemati</div>
+          <span className="f-logo-hi">श्रीमती</span>
+          <p className="f-about">Since 1984, Shreemati has been a devoted custodian of India's handwoven traditions — preserving the artistry of over 200 artisan families across Rajasthan and beyond.</p>
         </div>
         <div>
-          <div className="f-col-hd">Navigate</div>
-          <a className="f-lnk" onClick={() => setViewingCategory(null)}>Collections</a>
-          <a className="f-lnk">Heritage</a>
-          <a className="f-lnk">Atelier</a>
-          <a className="f-lnk">Care Guide</a>
+          <div className="f-hd">Explore</div>
+          <a className="f-link" onClick={()=>setViewingCategory(null)}>Collections</a>
+          <a className="f-link">Heritage</a>
+          <a className="f-link">Atelier</a>
+          <a className="f-link">Care Guide</a>
         </div>
         <div>
-          <div className="f-col-hd">Contact</div>
-          <a className="f-lnk">+91 9252703456</a>
-          <a className="f-lnk" href="https://maps.app.goo.gl/ZWTxmrmdtPAGRLyf9" target="_blank">Jodhpur, Rajasthan</a>
-          <a className="f-lnk" href="https://www.instagram.com/shreemati_sarees_jodhpur/" target="_blank">Instagram</a>
+          <div className="f-hd">Contact</div>
+          <a className="f-link">+91 9252703456</a>
+          <a className="f-link" href="https://maps.app.goo.gl/ZWTxmrmdtPAGRLyf9" target="_blank">Jodhpur, Rajasthan</a>
+          <a className="f-link" href="https://www.instagram.com/shreemati_sarees_jodhpur/" target="_blank">Instagram</a>
         </div>
         <div>
-          <div className="f-col-hd">Legal</div>
-          <a className="f-lnk">Shipping Policy</a>
-          <a className="f-lnk">Returns</a>
-          <a className="f-lnk">Authenticity</a>
-          <a className="f-lnk">Privacy</a>
+          <div className="f-hd">Policies</div>
+          <a className="f-link">Shipping</a>
+          <a className="f-link">Returns</a>
+          <a className="f-link">Authenticity</a>
+          <a className="f-link">Privacy</a>
         </div>
       </div>
       <div className="f-base">
-        <div className="f-rule"/>
+        <div className="f-ornament">✦ ✦ ✦</div>
         <span className="f-copy">© 2026 Shreemati Heritage. All Rights Reserved.</span>
-        <div className="f-rule"/>
+        <div className="f-ornament">✦ ✦ ✦</div>
       </div>
     </footer>
     </>
