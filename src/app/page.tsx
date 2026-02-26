@@ -133,7 +133,7 @@ export default function Home() {
       {/* --- CONTENT AREA --- */}
       {!viewingCategory ? (
         <>
-          {/* HERO SECTION: REPLACED WITH WEAVING/LOOM IMAGE */}
+          {/* HERO SECTION: REPLACED WITH AUTHENTIC HANDLOOM IMAGE */}
           <section className="relative h-[85vh] flex items-center justify-center overflow-hidden">
             {/*  */}
             <img 
