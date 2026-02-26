@@ -13,6 +13,7 @@ export default function Home() {
   const [sarees, setSarees] = useState<any[]>([]);
   const [filteredSarees, setFilteredSarees] = useState<any[]>([]);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [selectedSaree, setSelectedSaree] = useState<any | null>(null); // To track which saree is clicked
   const [cart, setCart] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
@@ -36,10 +37,9 @@ export default function Home() {
 
   const addToCart = (saree: any) => {
     setCart([...cart, saree]);
+    setSelectedSaree(null); // Close the detail view
     setIsCartOpen(true);
   };
-
-  const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
 
   const simulateCheckout = () => {
     setOrderComplete(true);
@@ -50,130 +50,116 @@ export default function Home() {
     }, 4000);
   };
 
-  const askAI = async () => {
-    if (!input) return;
-    setLoading(true);
-    setChatResponse("Radhika is curating your selection...");
-    try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: input }),
-        });
-        const data = await res.json();
-        setChatResponse(data.text);
-    } catch (e) {
-        setChatResponse("Namaste. I am here to help. What occasion are you shopping for?");
-    }
-    setLoading(false);
-  };
-
   return (
     <main className="min-h-screen bg-[#FDFCFB] text-[#2D2926] antialiased">
-      {/* Navigation - Mobile Optimized Padding */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-stone-100 py-4 md:py-8 px-4 md:px-12 flex justify-between items-center">
-        <div className="hidden md:block text-[9px] uppercase tracking-[0.4em] font-bold text-stone-400">Since 2026</div>
+      {/* Navigation */}
+      <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-stone-100 py-4 md:py-8 px-4 md:px-12 flex justify-between items-center">
         <h1 className="text-2xl md:text-5xl font-serif tracking-[0.2em] uppercase font-light text-[#4A4036]">Shreemati</h1>
-        <button onClick={() => setIsCartOpen(true)} className="relative text-[10px] uppercase tracking-widest font-bold px-3 py-2 border border-stone-200 hover:bg-stone-50 transition-colors">
+        <button onClick={() => setIsCartOpen(true)} className="text-[10px] uppercase tracking-widest font-bold px-4 py-2 border border-stone-200">
           Bag ({cart.length})
         </button>
       </nav>
 
-      {/* Side Cart UI - Full screen on mobile, drawer on desktop */}
+      {/* --- PRODUCT DETAIL MODAL --- */}
+      {selectedSaree && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
+          <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-sm flex flex-col md:flex-row relative">
+            <button 
+              onClick={() => setSelectedSaree(null)}
+              className="absolute top-4 right-4 z-10 text-stone-400 hover:text-black text-xl"
+            >✕</button>
+            
+            {/* Saree Image in Modal */}
+            <div className="w-full md:w-1/2 h-[400px] md:h-auto bg-stone-100">
+              <img src={selectedSaree.image_url} className="w-full h-full object-cover" alt={selectedSaree.name} />
+            </div>
+
+            {/* Saree Details in Modal */}
+            <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center text-center md:text-left">
+              <span className="text-[10px] uppercase tracking-[0.3em] text-amber-700 mb-2 font-bold">{selectedSaree.category}</span>
+              <h2 className="text-3xl md:text-4xl font-serif mb-4">{selectedSaree.name}</h2>
+              <p className="text-sm text-stone-500 italic mb-8 leading-relaxed">{selectedSaree.description}</p>
+              <div className="text-2xl font-serif mb-8 text-stone-800">₹{selectedSaree.price.toLocaleString('en-IN')}</div>
+              
+              <button 
+                onClick={() => addToCart(selectedSaree)}
+                className="w-full bg-stone-900 text-white py-5 text-[10px] uppercase tracking-[0.3em] font-bold hover:bg-amber-900 transition-colors"
+              >
+                Buy Now & Add to Bag
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- CART SIDEBAR --- */}
       {isCartOpen && (
         <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm">
-          <div className="absolute right-0 top-0 h-full w-full md:max-w-md bg-white p-6 md:p-10 shadow-2xl transition-transform duration-500 overflow-y-auto">
-            <div className="flex justify-between items-center mb-8">
+          <div className="absolute right-0 top-0 h-full w-full md:max-w-md bg-white p-10 shadow-2xl">
+            <div className="flex justify-between items-center mb-10">
               <h2 className="text-2xl font-serif italic">Your Selection</h2>
-              <button onClick={() => setIsCartOpen(false)} className="p-2 text-xs uppercase tracking-widest text-stone-400">Close</button>
+              <button onClick={() => setIsCartOpen(false)} className="text-xs uppercase tracking-widest text-stone-400">Close</button>
             </div>
-            
             {orderComplete ? (
-              <div className="text-center py-20 space-y-4">
-                <div className="text-4xl text-amber-600">✓</div>
-                <h3 className="text-xl font-serif">Order Received</h3>
-                <p className="text-sm text-stone-500 italic px-4">Namaste! We are preparing your heritage drapes.</p>
+              <div className="text-center py-20">
+                <div className="text-4xl mb-4">✓</div>
+                <p className="font-serif italic">Namaste! Your order is placed.</p>
               </div>
             ) : cart.length === 0 ? (
-              <p className="text-sm italic text-stone-400">Your bag is currently empty.</p>
+              <p className="text-sm italic text-stone-400">Your bag is empty.</p>
             ) : (
-              <div className="space-y-6">
+              <div>
                 {cart.map((item, idx) => (
-                  <div key={idx} className="flex gap-4 border-b border-stone-100 pb-4">
-                    <img src={item.image_url} className="w-16 h-20 object-cover bg-stone-100" />
-                    <div className="flex-1">
-                      <p className="text-[10px] md:text-xs uppercase tracking-widest font-bold">{item.name}</p>
-                      <p className="text-xs text-amber-800">₹{item.price.toLocaleString('en-IN')}</p>
-                    </div>
+                  <div key={idx} className="flex gap-4 mb-4 border-b border-stone-100 pb-4">
+                    <img src={item.image_url} className="w-12 h-16 object-cover" />
+                    <div className="text-xs uppercase tracking-widest font-bold self-center">{item.name}</div>
                   </div>
                 ))}
-                <div className="pt-6">
-                  <div className="flex justify-between text-lg font-serif mb-6">
-                    <span>Total</span>
-                    <span>₹{cartTotal.toLocaleString('en-IN')}</span>
-                  </div>
-                  <button onClick={simulateCheckout} className="w-full bg-stone-900 text-white py-5 text-[10px] uppercase tracking-[0.2em] hover:bg-stone-800 active:scale-95 transition-all">
-                    Place Order
-                  </button>
-                </div>
+                <button onClick={simulateCheckout} className="w-full bg-stone-900 text-white py-4 mt-6 text-[10px] uppercase tracking-widest">Confirm Order</button>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Hero & AI Section - Better Spacing for Mobile */}
-      <section className="py-12 md:py-20 px-4 md:px-6 text-center max-w-4xl mx-auto">
-        <h2 className="text-4xl md:text-6xl font-serif italic text-stone-800 mb-6 md:mb-8 leading-tight">The Art of the Drape</h2>
-        <div className="max-w-2xl mx-auto bg-stone-50 border border-stone-100 p-6 md:p-8 rounded-sm">
-          <p className="text-sm font-serif italic text-stone-600 mb-6 min-h-[40px]">"{chatResponse || "Namaste. I am Radhika. Tell me the occasion, and I shall guide you."}"</p>
-          <div className="flex gap-2 md:gap-4 border-b border-stone-200 pb-2 max-w-md mx-auto">
-            <input className="flex-1 bg-transparent text-xs focus:outline-none italic" placeholder="Ask Radhika..." value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && askAI()} />
-            <button onClick={askAI} className="text-[10px] uppercase tracking-widest font-bold text-amber-800 px-2">
-              {loading ? "..." : "Consult"}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Categories - Horizontal Scroll on Mobile */}
-      <div className="max-w-7xl mx-auto px-4 md:px-10 mb-12">
-        <div className="flex overflow-x-auto md:flex-wrap md:justify-center gap-3 no-scrollbar pb-4 md:pb-0">
+      {/* Hero & Category Section */}
+      <header className="py-20 px-6 text-center max-w-4xl mx-auto">
+        <h2 className="text-5xl md:text-7xl font-serif italic mb-12">The Heritage Collection</h2>
+        <div className="flex overflow-x-auto md:flex-wrap md:justify-center gap-3 no-scrollbar">
           {CATEGORIES.map(cat => (
-            <button 
-                key={cat} 
-                onClick={() => setActiveCategory(cat)} 
-                className={`whitespace-nowrap text-[9px] md:text-[10px] uppercase tracking-widest px-4 md:px-5 py-2 border flex-shrink-0 ${activeCategory === cat ? 'bg-stone-900 text-white border-stone-900' : 'text-stone-500 border-stone-100 bg-white'}`}
-            >
+            <button key={cat} onClick={() => setActiveCategory(cat)} className={`whitespace-nowrap text-[10px] uppercase tracking-widest px-5 py-2 border transition-all ${activeCategory === cat ? 'bg-stone-900 text-white border-stone-900' : 'text-stone-500 border-stone-100'}`}>
               {cat}
             </button>
           ))}
         </div>
-      </div>
+      </header>
 
-      {/* Product Grid - 1 col on mobile, 2 on tablet, 3 on desktop */}
-      <div className="max-w-7xl mx-auto px-4 md:px-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-16 pb-32">
+      {/* Product Grid */}
+      <div className="max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 pb-32">
         {filteredSarees.map((s) => (
-          <div key={s.id} className="group">
-            <div className="relative aspect-[3/4] overflow-hidden bg-stone-100 mb-4 md:mb-6">
-              <img src={s.image_url} className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-110" alt={s.name} />
-              <div className="absolute top-3 left-3 md:top-4 md:left-4 bg-white/90 px-2 py-1 text-[8px] md:text-[9px] uppercase tracking-widest text-stone-500">{s.category}</div>
+          <div key={s.id} className="group flex flex-col items-center">
+            {/* IMAGE IS NOW CLICKABLE */}
+            <div 
+              onClick={() => setSelectedSaree(s)}
+              className="relative aspect-[3/4] overflow-hidden bg-stone-100 mb-6 cursor-zoom-in w-full"
+            >
+              <img src={s.image_url} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110" alt={s.name} />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
             </div>
-            <div className="text-center space-y-2 md:space-y-3 px-2">
-              <h3 className="text-xs md:text-sm font-serif tracking-widest uppercase">{s.name}</h3>
-              <p className="text-sm text-amber-800 font-bold">₹{s.price.toLocaleString('en-IN')}</p>
-              <button onClick={() => addToCart(s)} className="w-full md:w-auto md:px-8 py-3 md:py-2 border border-stone-900 text-[9px] uppercase tracking-widest hover:bg-stone-900 hover:text-white transition-all">
-                Add to Bag
+            
+            <div className="text-center space-y-2">
+              <h3 className="text-sm font-serif tracking-widest uppercase">{s.name}</h3>
+              <p className="text-sm font-bold text-amber-900">₹{s.price.toLocaleString('en-IN')}</p>
+              <button 
+                onClick={() => setSelectedSaree(s)}
+                className="text-[9px] uppercase tracking-[0.3em] text-stone-400 hover:text-black transition-colors"
+              >
+                View Details
               </button>
             </div>
           </div>
         ))}
       </div>
-
-      {/* Footer - Simple & Clean */}
-      <footer className="border-t border-stone-100 py-12 md:py-20 text-center bg-white px-4">
-        <p className="text-[8px] md:text-[9px] uppercase tracking-[0.5em] md:tracking-[1em] text-stone-300">Shreemati Heritage &bull; Handcrafted in India</p>
-      </footer>
     </main>
   );
 }
