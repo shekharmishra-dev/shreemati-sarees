@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     // Fetch inventory so Radhika knows what we have
     const { data: sarees } = await supabase.from('Sarees').select('name, price, description, category');
     
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
     const systemPrompt = `
       You are "Radhika," the Lead Stylist at Shreemati Heritage Boutique. 
