@@ -70,28 +70,29 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#FDFCFB] text-[#2D2926] antialiased">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-stone-100 py-8 px-12 flex justify-between items-center">
-        <h1 className="text-4xl font-serif tracking-[0.2em] uppercase font-light text-[#4A4036]">Shreemati</h1>
-        <button onClick={() => setIsCartOpen(true)} className="relative text-[10px] uppercase tracking-widest font-bold px-4 py-2 border border-stone-200 hover:bg-stone-50 transition-colors">
+      {/* Navigation - Mobile Optimized Padding */}
+      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-stone-100 py-4 md:py-8 px-4 md:px-12 flex justify-between items-center">
+        <div className="hidden md:block text-[9px] uppercase tracking-[0.4em] font-bold text-stone-400">Since 2026</div>
+        <h1 className="text-2xl md:text-5xl font-serif tracking-[0.2em] uppercase font-light text-[#4A4036]">Shreemati</h1>
+        <button onClick={() => setIsCartOpen(true)} className="relative text-[10px] uppercase tracking-widest font-bold px-3 py-2 border border-stone-200 hover:bg-stone-50 transition-colors">
           Bag ({cart.length})
         </button>
       </nav>
 
-      {/* Side Cart UI */}
+      {/* Side Cart UI - Full screen on mobile, drawer on desktop */}
       {isCartOpen && (
         <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm">
-          <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white p-10 shadow-2xl transition-transform duration-500">
-            <div className="flex justify-between items-center mb-10">
+          <div className="absolute right-0 top-0 h-full w-full md:max-w-md bg-white p-6 md:p-10 shadow-2xl transition-transform duration-500 overflow-y-auto">
+            <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-serif italic">Your Selection</h2>
-              <button onClick={() => setIsCartOpen(false)} className="text-xs uppercase tracking-widest text-stone-400">Close</button>
+              <button onClick={() => setIsCartOpen(false)} className="p-2 text-xs uppercase tracking-widest text-stone-400">Close</button>
             </div>
             
             {orderComplete ? (
               <div className="text-center py-20 space-y-4">
                 <div className="text-4xl text-amber-600">✓</div>
                 <h3 className="text-xl font-serif">Order Received</h3>
-                <p className="text-sm text-stone-500 italic">Namaste! We are preparing your heritage drapes.</p>
+                <p className="text-sm text-stone-500 italic px-4">Namaste! We are preparing your heritage drapes.</p>
               </div>
             ) : cart.length === 0 ? (
               <p className="text-sm italic text-stone-400">Your bag is currently empty.</p>
@@ -101,7 +102,7 @@ export default function Home() {
                   <div key={idx} className="flex gap-4 border-b border-stone-100 pb-4">
                     <img src={item.image_url} className="w-16 h-20 object-cover bg-stone-100" />
                     <div className="flex-1">
-                      <p className="text-xs uppercase tracking-widest font-bold">{item.name}</p>
+                      <p className="text-[10px] md:text-xs uppercase tracking-widest font-bold">{item.name}</p>
                       <p className="text-xs text-amber-800">₹{item.price.toLocaleString('en-IN')}</p>
                     </div>
                   </div>
@@ -111,10 +112,9 @@ export default function Home() {
                     <span>Total</span>
                     <span>₹{cartTotal.toLocaleString('en-IN')}</span>
                   </div>
-                  <button onClick={simulateCheckout} className="w-full bg-stone-900 text-white py-4 text-[10px] uppercase tracking-[0.2em] hover:bg-stone-800">
+                  <button onClick={simulateCheckout} className="w-full bg-stone-900 text-white py-5 text-[10px] uppercase tracking-[0.2em] hover:bg-stone-800 active:scale-95 transition-all">
                     Place Order
                   </button>
-                  <p className="text-[9px] text-center mt-4 text-stone-400 italic">Standard Razorpay Gateway will be integrated here.</p>
                 </div>
               </div>
             )}
@@ -122,34 +122,58 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero Section */}
-      <section className="py-20 px-6 text-center max-w-4xl mx-auto">
-        <h2 className="text-6xl font-serif italic text-stone-800 mb-8">The Art of the Drape</h2>
-        <div className="max-w-2xl mx-auto bg-stone-50 border border-stone-100 p-8 rounded-sm">
-          <p className="text-sm font-serif italic text-stone-600 mb-6 italic">"{chatResponse || "Namaste. I am Radhika. Tell me the occasion, and I shall guide you."}"</p>
-          <div className="flex gap-4 border-b border-stone-200 pb-2 max-w-md mx-auto">
+      {/* Hero & AI Section - Better Spacing for Mobile */}
+      <section className="py-12 md:py-20 px-4 md:px-6 text-center max-w-4xl mx-auto">
+        <h2 className="text-4xl md:text-6xl font-serif italic text-stone-800 mb-6 md:mb-8 leading-tight">The Art of the Drape</h2>
+        <div className="max-w-2xl mx-auto bg-stone-50 border border-stone-100 p-6 md:p-8 rounded-sm">
+          <p className="text-sm font-serif italic text-stone-600 mb-6 min-h-[40px]">"{chatResponse || "Namaste. I am Radhika. Tell me the occasion, and I shall guide you."}"</p>
+          <div className="flex gap-2 md:gap-4 border-b border-stone-200 pb-2 max-w-md mx-auto">
             <input className="flex-1 bg-transparent text-xs focus:outline-none italic" placeholder="Ask Radhika..." value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && askAI()} />
-            <button onClick={askAI} className="text-[10px] uppercase tracking-widest font-bold text-amber-800">{loading ? "..." : "Consult"}</button>
+            <button onClick={askAI} className="text-[10px] uppercase tracking-widest font-bold text-amber-800 px-2">
+              {loading ? "..." : "Consult"}
+            </button>
           </div>
         </div>
       </section>
 
-      {/* Product Grid */}
-      <div className="max-w-7xl mx-auto px-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-16 pb-32">
+      {/* Categories - Horizontal Scroll on Mobile */}
+      <div className="max-w-7xl mx-auto px-4 md:px-10 mb-12">
+        <div className="flex overflow-x-auto md:flex-wrap md:justify-center gap-3 no-scrollbar pb-4 md:pb-0">
+          {CATEGORIES.map(cat => (
+            <button 
+                key={cat} 
+                onClick={() => setActiveCategory(cat)} 
+                className={`whitespace-nowrap text-[9px] md:text-[10px] uppercase tracking-widest px-4 md:px-5 py-2 border flex-shrink-0 ${activeCategory === cat ? 'bg-stone-900 text-white border-stone-900' : 'text-stone-500 border-stone-100 bg-white'}`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Product Grid - 1 col on mobile, 2 on tablet, 3 on desktop */}
+      <div className="max-w-7xl mx-auto px-4 md:px-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-16 pb-32">
         {filteredSarees.map((s) => (
           <div key={s.id} className="group">
-            <div className="relative aspect-[3/4] overflow-hidden bg-stone-100 mb-6">
+            <div className="relative aspect-[3/4] overflow-hidden bg-stone-100 mb-4 md:mb-6">
               <img src={s.image_url} className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-110" alt={s.name} />
-              <div className="absolute top-4 left-4 bg-white/90 px-3 py-1 text-[9px] uppercase tracking-widest text-stone-500">{s.category}</div>
+              <div className="absolute top-3 left-3 md:top-4 md:left-4 bg-white/90 px-2 py-1 text-[8px] md:text-[9px] uppercase tracking-widest text-stone-500">{s.category}</div>
             </div>
-            <div className="text-center space-y-3">
-              <h3 className="text-sm font-serif tracking-widest uppercase">{s.name}</h3>
+            <div className="text-center space-y-2 md:space-y-3 px-2">
+              <h3 className="text-xs md:text-sm font-serif tracking-widest uppercase">{s.name}</h3>
               <p className="text-sm text-amber-800 font-bold">₹{s.price.toLocaleString('en-IN')}</p>
-              <button onClick={() => addToCart(s)} className="px-6 py-2 border border-stone-900 text-[9px] uppercase tracking-widest hover:bg-stone-900 hover:text-white transition-all">Add to Bag</button>
+              <button onClick={() => addToCart(s)} className="w-full md:w-auto md:px-8 py-3 md:py-2 border border-stone-900 text-[9px] uppercase tracking-widest hover:bg-stone-900 hover:text-white transition-all">
+                Add to Bag
+              </button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Footer - Simple & Clean */}
+      <footer className="border-t border-stone-100 py-12 md:py-20 text-center bg-white px-4">
+        <p className="text-[8px] md:text-[9px] uppercase tracking-[0.5em] md:tracking-[1em] text-stone-300">Shreemati Heritage &bull; Handcrafted in India</p>
+      </footer>
     </main>
   );
 }
