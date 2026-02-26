@@ -14,6 +14,7 @@ export default function Home() {
   const [viewingCategory, setViewingCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [orderComplete, setOrderComplete] = useState(false);
 
   useEffect(() => {
     async function getSarees() {
@@ -23,7 +24,6 @@ export default function Home() {
     getSarees();
   }, []);
 
-  // Filter sarees based on the clicked category
   const categoryInventory = sarees.filter(s => s.category === viewingCategory);
 
   const addToCart = (saree: any) => {
@@ -31,62 +31,127 @@ export default function Home() {
     setIsCartOpen(true);
   };
 
+  const simulateCheckout = () => {
+    setOrderComplete(true);
+    setTimeout(() => {
+      setCart([]);
+      setIsCartOpen(false);
+      setOrderComplete(false);
+    }, 4000);
+  };
+
   return (
-    <main className="min-h-screen bg-[#FDFCFB] text-[#2D2926] antialiased px-4 md:px-12">
-      {/* Header */}
-      <nav className="py-8 flex justify-between items-center border-b border-stone-100 sticky top-0 bg-[#FDFCFB]/90 z-50">
-        <h1 className="text-3xl font-serif tracking-widest uppercase cursor-pointer" onClick={() => setViewingCategory(null)}>Shreemati</h1>
-        <button onClick={() => setIsCartOpen(true)} className="text-[10px] font-bold uppercase tracking-widest">Bag ({cart.length})</button>
+    <main className="min-h-screen bg-[#FDFCFB] text-[#2D2926] antialiased">
+      {/* Premium Navbar */}
+      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-stone-100 py-6 px-6 md:px-12 flex justify-between items-center">
+        <h1 
+          className="text-2xl md:text-4xl font-serif tracking-[0.2em] uppercase font-light text-[#4A4036] cursor-pointer"
+          onClick={() => setViewingCategory(null)}
+        >
+          Shreemati
+        </h1>
+        <button onClick={() => setIsCartOpen(true)} className="text-[10px] uppercase tracking-widest font-bold px-4 py-2 border border-stone-200 hover:bg-stone-900 hover:text-white transition-all">
+          Bag ({cart.length})
+        </button>
       </nav>
 
-      {/* --- VIEW 1: THE CATEGORY GALLERY --- */}
+      {/* --- SIDE BAG (CART) --- */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm">
+          <div className="absolute right-0 top-0 h-full w-full md:max-w-md bg-white p-8 shadow-2xl overflow-y-auto">
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-2xl font-serif italic">Your Selection</h2>
+              <button onClick={() => setIsCartOpen(false)} className="text-xs text-stone-400">Close</button>
+            </div>
+            {orderComplete ? (
+              <div className="text-center py-20 space-y-4">
+                <div className="text-4xl text-amber-600">✓</div>
+                <h3 className="text-xl font-serif">Namaste</h3>
+                <p className="text-sm text-stone-500">Your heritage drape is reserved.</p>
+              </div>
+            ) : cart.length === 0 ? (
+              <p className="text-sm italic text-stone-400">Bag is empty.</p>
+            ) : (
+              <div className="space-y-6">
+                {cart.map((item, idx) => (
+                  <div key={idx} className="flex gap-4 border-b border-stone-50 pb-4">
+                    <img src={item.image_url} className="w-16 h-20 object-cover rounded-sm" />
+                    <div className="flex-1 self-center">
+                      <p className="text-[10px] uppercase tracking-widest font-bold">{item.name}</p>
+                      <p className="text-xs text-amber-800">₹{item.price.toLocaleString('en-IN')}</p>
+                    </div>
+                  </div>
+                ))}
+                <div className="pt-6">
+                  <div className="flex justify-between text-lg font-serif mb-6">
+                    <span>Total</span>
+                    <span>₹{cart.reduce((s, i) => s + i.price, 0).toLocaleString('en-IN')}</span>
+                  </div>
+                  <button onClick={simulateCheckout} className="w-full bg-stone-900 text-white py-5 text-[10px] uppercase tracking-widest">
+                    Confirm Order
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* --- MAIN CONTENT --- */}
       {!viewingCategory ? (
-        <section className="py-20">
-          <h2 className="text-center text-4xl font-serif italic mb-16">Explore our Heritage Collections</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        /* CATEGORY GRID */
+        <section className="py-12 md:py-24 px-6 max-w-7xl mx-auto">
+          <div className="text-center mb-16 md:mb-24">
+            <p className="text-[10px] uppercase tracking-[0.5em] text-amber-700 mb-4 font-bold">The Heritage Edit</p>
+            <h2 className="text-4xl md:text-7xl font-serif italic text-stone-800">Signature Collections</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
             {CATEGORIES.map((cat) => (
               <div 
                 key={cat} 
                 onClick={() => setViewingCategory(cat)}
-                className="group cursor-pointer text-center"
+                className="group cursor-pointer text-center space-y-4"
               >
-                <div className="aspect-[3/4] overflow-hidden bg-stone-100 mb-4">
-                  {/* Each category box shows the first saree of that type as a cover */}
+                <div className="relative aspect-[3/4] overflow-hidden bg-stone-100 rounded-sm">
                   <img 
-                    src={sarees.find(s => s.category === cat)?.image_url || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800'} 
-                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
+                    src={sarees.find(s => s.category === cat)?.image_url || 'https://images.pexels.com/photos/15725333/pexels-photo-15725333.jpeg'} 
+                    className="w-full h-full object-cover grayscale-[40%] group-hover:grayscale-0 transition-all duration-[1s] group-hover:scale-110"
                     alt={cat}
                   />
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
                 </div>
-                <h3 className="font-serif text-lg tracking-wide uppercase group-hover:text-amber-800 transition-colors">{cat}</h3>
-                <p className="text-[10px] text-stone-400 uppercase tracking-widest mt-1">Explore Collection</p>
+                <h3 className="text-sm font-serif tracking-[0.2em] uppercase font-light">{cat}</h3>
               </div>
             ))}
           </div>
         </section>
       ) : (
-        /* --- VIEW 2: THE INDIVIDUAL SAREE INVENTORY --- */
-        <section className="py-20">
-          <div className="mb-12 flex items-center gap-4">
-            <button onClick={() => setViewingCategory(null)} className="text-stone-400 hover:text-black">← Back</button>
-            <h2 className="text-4xl font-serif italic">{viewingCategory} Collection</h2>
+        /* INDIVIDUAL PRODUCTS */
+        <section className="py-12 md:py-20 px-6 max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-16 border-b border-stone-100 pb-8">
+            <div>
+              <button onClick={() => setViewingCategory(null)} className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-black mb-4 flex items-center gap-2">
+                ← Back to Collections
+              </button>
+              <h2 className="text-4xl md:text-5xl font-serif italic">{viewingCategory} Edit</h2>
+            </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12 md:gap-20">
             {categoryInventory.map((s) => (
-              <div key={s.id} className="group border border-stone-100 p-4 hover:shadow-xl transition-all bg-white">
-                <div className="aspect-[3/4] overflow-hidden mb-6">
-                  <img src={s.image_url} className="w-full h-full object-cover" alt={s.name} />
+              <div key={s.id} className="group flex flex-col items-center">
+                <div className="relative aspect-[3/4] overflow-hidden bg-stone-100 mb-8 w-full">
+                  <img src={s.image_url} className="w-full h-full object-cover transition-all duration-[1.5s] group-hover:scale-105" alt={s.name} />
                 </div>
                 <div className="text-center space-y-3">
-                  <h3 className="font-serif text-xl tracking-tight uppercase">{s.name}</h3>
-                  <p className="text-xs text-stone-500 italic px-4">{s.description}</p>
-                  <p className="text-lg font-bold text-amber-900">₹{s.price.toLocaleString('en-IN')}</p>
+                  <h3 className="text-sm font-serif tracking-widest uppercase font-medium">{s.name}</h3>
+                  <p className="text-[11px] text-stone-400 italic px-4 leading-relaxed line-clamp-2">{s.description}</p>
+                  <p className="text-sm font-bold text-amber-900">₹{s.price.toLocaleString('en-IN')}</p>
                   <button 
                     onClick={() => addToCart(s)}
-                    className="w-full py-3 bg-stone-900 text-white text-[10px] uppercase tracking-widest hover:bg-amber-900 transition-colors"
+                    className="mt-4 px-10 py-3 bg-stone-900 text-white text-[9px] uppercase tracking-[0.3em] hover:bg-amber-900 transition-colors"
                   >
-                    Buy Now
+                    Add to Bag
                   </button>
                 </div>
               </div>
@@ -95,7 +160,9 @@ export default function Home() {
         </section>
       )}
 
-      {/* Cart Sidebar remains the same as previous version */}
+      <footer className="py-20 text-center border-t border-stone-50">
+        <p className="text-[9px] uppercase tracking-[1em] text-stone-300">Shreemati Heritage &bull; Handcrafted in India</p>
+      </footer>
     </main>
   );
 }
