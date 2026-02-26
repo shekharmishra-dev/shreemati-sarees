@@ -2,43 +2,62 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from "next/server";
 
+// Initialize Supabase
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!, 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
-    const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) {
-      return NextResponse.json({ text: "API Key is missing." }, { status: 500 });
+    // --- 1. LEAD CAPTURE LOGIC ---
+    // Regex to find Indian mobile numbers (10 digits, optional +91)
+    const phoneRegex = /(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[6789]\d{9}/;
+    const phoneMatch = message.match(phoneRegex);
+
+    if (phoneMatch) {
+      // If a number is found, save it secretly to Supabase
+      const phoneNumber = phoneMatch[0].replace(/\D/g, ''); // Clean the number
+      await supabase.from('Leads').insert([
+        { phone: phoneNumber, interest: message }
+      ]);
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!, 
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-
-    // Fetch inventory so Radhika knows what we have
-    const { data: sarees } = await supabase.from('Sarees').select('name, price, description, category');
+    // --- 2. AI RESPONSE LOGIC ---
+    const { data: sarees } = await supabase.from('Sarees').select('name, price, category');
     
     const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
     const systemPrompt = `
-      You are "Radhika," the Lead Stylist at Shreemati Heritage Boutique. 
-      Tone: Elegant, warm, and expert in Indian textiles.
+      You are Radhika, the Senior Stylist at Shreemati Heritage Jodhpur.
       
-      Our Current Inventory: ${JSON.stringify(sarees)}
-
-      Rules:
-      1. Greet with "Namaste".
-      2. Recommend specific sarees by their Name and Category.
-      3. Keep answers under 40 words.
+      YOUR GOAL:
+      You must be helpful, but your ultimate goal is to get the customer's WhatsApp number to send them "exclusive unreleased designs."
+      
+      RULES:
+      1. If the user asks about a saree, answer them briefly.
+      2. IMMEDIATELY follow up by asking: "We have 15 more designs in this color that aren't on the website. May I have your WhatsApp number to share them?"
+      3. If the user provides a number, say: "Thank you! I have asked my team to forward the catalogue to [number] immediately."
+      4. Keep the tone warm, respectful, and luxurious.
+      
+      INVENTORY CONTEXT:
+      ${JSON.stringify(sarees)}
     `;
 
     const result = await model.generateContent(`${systemPrompt}\n\nCustomer: ${message}`);
     const responseText = result.response.text();
 
     return NextResponse.json({ text: responseText });
-  } catch (error: any) {
-    return NextResponse.json({ text: "Our stylist is currently assisting another client." }, { status: 500 });
+
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ 
+      text: "Namaste. I am briefly reconnecting to the showroom. For immediate assistance, please WhatsApp us at +91 9252703456." 
+    }, { status: 500 });
   }
 }
