@@ -137,7 +137,7 @@ export default function Home() {
           <section className="relative h-[85vh] flex items-center justify-center overflow-hidden">
             {/*  */}
             <img 
-              src="https://images.unsplash.com/photo-1606913084603-3e7702b01627?q=80&w=2070&auto=format&fit=crop" 
+              src="https://images.pexels.com/photos/1162983/pexels-photo-1162983.jpeg?auto=compress&cs=tinysrgb&w=2070" 
               className="absolute inset-0 w-full h-full object-cover grayscale-[10%] sepia-[10%] scale-105" 
               alt="Handloom Weaving"
             />
