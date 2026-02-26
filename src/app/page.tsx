@@ -13,7 +13,7 @@ const CATEGORIES = ["Banarasi", "Kanjivaram", "Chanderi", "Bandhani", "Paithani"
 // --- PROMOTIONAL BANNER COMPONENT ---
 function PromotionalBanner() {
   return (
-    <div className="bg-[#4A4036] text-white text-xs tracking-[0.2em] text-center py-2.5 px-4 font-medium relative z-50">
+    <div className="bg-[#2D2926] text-white text-[10px] uppercase tracking-[0.2em] text-center py-2 relative z-50 font-medium">
       <p>✨ Complimentary shipping on domestic orders above ₹10,000 ✨</p>
     </div>
   );
@@ -104,25 +104,25 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#F9F8F6] text-[#1C1917] antialiased selection:bg-[#D4C4B5] selection:text-black">
+      {/* GLOBAL STYLES FOR FONTS */}
       <style jsx global>{`
         body { font-family: 'Lato', sans-serif; }
         h1, h2, h3, h4, .font-serif { font-family: 'Playfair Display', serif; }
       `}</style>
       
-      {/* --- PROMOTIONAL BANNER --- */}
       <PromotionalBanner />
 
-      {/* --- REFINED HERITAGE NAVBAR --- */}
+      {/* --- SLIM LUXURY NAVBAR --- */}
       <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E5E0DA] py-4 px-6 md:px-12 flex justify-between items-center transition-all shadow-sm">
         <div className="flex flex-col cursor-pointer group" onClick={() => setViewingCategory(null)}>
           <h1 className="text-2xl md:text-3xl font-serif tracking-[0.1em] uppercase text-[#2D2926] group-hover:text-black transition-colors font-medium">Shreemati</h1>
-          <span className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-[#8C857E] group-hover:text-[#A67C52] transition-colors mt-1">Jodhpur • Est. 2026</span>
+          <span className="text-[9px] md:text-[10px] uppercase tracking-[0.3em] text-[#8C857E] group-hover:text-[#A67C52] transition-colors mt-0.5">Jodhpur • Est. 2026</span>
         </div>
         <div className="flex items-center gap-8">
-          <a href="#about" className="hidden md:block text-xs uppercase tracking-[0.2em] text-[#5D554F] hover:text-black transition-colors font-medium">Our Story</a>
+          <a href="#about" className="hidden md:block text-[10px] uppercase tracking-[0.2em] text-[#5D554F] hover:text-black transition-colors font-bold">Our Story</a>
           <button 
             onClick={() => setIsCartOpen(true)} 
-            className="relative text-xs uppercase tracking-[0.2em] font-bold px-6 py-2.5 bg-[#2D2926] text-white hover:bg-[#A67C52] transition-all shadow-md active:scale-95 border border-transparent"
+            className="relative text-[10px] uppercase tracking-[0.2em] font-bold px-6 py-2.5 bg-[#2D2926] text-white hover:bg-[#A67C52] transition-all shadow-md active:scale-95 border border-transparent"
           >
             Bag ({cart.length})
           </button>
@@ -200,11 +200,11 @@ export default function Home() {
         {!isChatOpen && (
           <button 
             onClick={() => setIsChatOpen(true)}
-            className="group flex items-center gap-3 bg-[#2D2926] text-white pl-6 pr-2 py-2 rounded-full shadow-2xl hover:scale-105 transition-all duration-300 border border-white/10"
+            className="group flex items-center gap-3 bg-[#2D2926] text-white pl-6 pr-2 py-3 rounded-full shadow-2xl hover:scale-105 transition-all duration-300 border border-white/10"
           >
             <span className="text-xs uppercase tracking-[0.2em] font-bold">Stylist</span>
-            <div className="w-10 h-10 bg-[#A67C52] rounded-full flex items-center justify-center">
-               <span className="text-lg">💬</span>
+            <div className="w-8 h-8 bg-[#A67C52] rounded-full flex items-center justify-center">
+               <span className="text-sm">💬</span>
             </div>
           </button>
         )}
