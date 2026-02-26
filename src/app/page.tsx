@@ -10,6 +10,15 @@ const supabase = createClient(
 
 const CATEGORIES = ["Banarasi", "Kanjivaram", "Chanderi", "Bandhani", "Paithani", "Patola", "Organza", "Tussar Silk", "Chiffon", "Georgette"];
 
+// --- PROMOTIONAL BANNER COMPONENT ---
+function PromotionalBanner() {
+  return (
+    <div className="bg-amber-900 text-white text-[10px] uppercase tracking-[0.15em] text-center py-2 px-4 relative z-50">
+      <p>✨ Festive Sale: Flat 15% off on all Banarasi Silk Sarees. Use code FESTIVE15 ✨</p>
+    </div>
+  );
+}
+
 export default function Home() {
   // --- STATE ---
   const [sarees, setSarees] = useState<any[]>([]);
@@ -18,7 +27,7 @@ export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
 
-  // --- CHAT STATE (New & Improved) ---
+  // --- CHAT STATE ---
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [messages, setMessages] = useState<{role: 'user' | 'bot', text: string}[]>([
     {role: 'bot', text: "Namaste. I am Radhika, your personal stylist. Looking for a specific color or occasion today?"}
@@ -52,14 +61,12 @@ export default function Home() {
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
     
-    // 1. Add User Message immediately
     const userMsg = chatInput;
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setChatInput('');
     setIsChatLoading(true);
 
     try {
-      // 2. Call API
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -68,14 +75,14 @@ export default function Home() {
       
       const data = await res.json();
       
-      // 3. Add Bot Response
       if (res.ok) {
         setMessages(prev => [...prev, { role: 'bot', text: data.text }]);
       } else {
         throw new Error("Stylist unavailable");
       }
     } catch (e) {
-      setMessages(prev => [...prev, { role: 'bot', text: "My apologies, I am having trouble connecting to the inventory right now. Please try again in a moment." }]);
+      // Updated error message with WhatsApp contact
+      setMessages(prev => [...prev, { role: 'bot', text: "My apologies, I am having trouble connecting to the inventory right now. For immediate personal assistance, please contact us on WhatsApp at +91 9252703456." }]);
     } finally {
       setIsChatLoading(false);
     }
@@ -91,7 +98,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#FDFCFB] text-[#2D2926] antialiased font-sans selection:bg-amber-100">
+    <main className="min-h-screen bg-[#FDFCFB] text-[#2D2926] antialiased font-sans selection:bg-amber-100 relative">
       
       {/* --- PREMIUM NAVBAR --- */}
       <nav className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-100 py-5 px-6 md:px-12 flex justify-between items-center transition-all">
@@ -110,7 +117,10 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* --- INTELLIGENT CHAT INTERFACE (Expanded & Fixed) --- */}
+      {/* --- PROMOTIONAL BANNER --- */}
+      <PromotionalBanner />
+
+      {/* --- INTELLIGENT CHAT INTERFACE --- */}
       <div className={`fixed bottom-0 right-0 z-[50] flex flex-col items-end p-4 md:p-6 transition-all duration-300 ${isChatOpen ? 'w-full md:w-[450px]' : 'w-auto'}`}>
         {isChatOpen && (
           <div className="w-full h-[500px] md:h-[600px] bg-white shadow-2xl rounded-t-xl md:rounded-xl border border-stone-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
@@ -161,7 +171,7 @@ export default function Home() {
               <div className="flex gap-2 relative">
                 <input 
                   className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 transition-all" 
-                  placeholder="Type a message (e.g., 'Show me red bridal sarees')..." 
+                  placeholder="Type a message..." 
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -233,12 +243,6 @@ export default function Home() {
                   <button onClick={simulateCheckout} className="w-full bg-stone-900 text-white py-5 text-[11px] uppercase tracking-[0.2em] font-bold hover:bg-stone-800 active:scale-95 transition-all">
                     Secure Checkout
                   </button>
-                  <div className="flex justify-center gap-4 mt-4 opacity-50 grayscale">
-                    {/* Trust Badges - Text representation for simplicity */}
-                    <span className="text-[10px] border border-stone-300 px-2 py-1 rounded">VISA</span>
-                    <span className="text-[10px] border border-stone-300 px-2 py-1 rounded">UPI</span>
-                    <span className="text-[10px] border border-stone-300 px-2 py-1 rounded">RuPay</span>
-                  </div>
                 </div>
               </div>
             )}
@@ -271,8 +275,8 @@ export default function Home() {
             </div>
           </section>
 
-          {/* TRUST INDICATORS (The "Production Ready" Polish) */}
-          <section className="py-16 border-b border-stone-100 bg-white">
+          {/* TRUST INDICATORS */}
+          <section className="py-16 border-b border-stone-100 bg-white" id="about">
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center px-6">
               <div className="space-y-3">
                 <div className="text-2xl text-amber-800">✦</div>
@@ -323,7 +327,7 @@ export default function Home() {
             </div>
           </section>
 
-          {/* TESTIMONIALS (Social Proof) */}
+          {/* TESTIMONIALS */}
           <section className="py-20 bg-stone-50 px-6">
             <div className="max-w-4xl mx-auto text-center">
               <h2 className="text-3xl font-serif italic mb-12">Words from our Patrons</h2>
@@ -343,17 +347,17 @@ export default function Home() {
       ) : (
         /* COLLECTION VIEW */
         <section className="py-20 px-6 max-w-7xl mx-auto min-h-screen">
-          <div className="flex justify-between items-end mb-12 border-b border-stone-100 pb-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 border-b border-stone-100 pb-8 sticky top-[85px] z-30 bg-[#FDFCFB]/80 backdrop-blur-md py-4">
             <div>
-              <button onClick={() => setViewingCategory(null)} className="text-[10px] uppercase tracking-widest text-stone-400 hover:text-black mb-6 flex items-center gap-2 transition-colors">
+              <button onClick={() => setViewingCategory(null)} className="text-[10px] uppercase tracking-widest text-stone-500 hover:text-black mb-4 flex items-center gap-2 transition-colors">
                 ← Back to Collections
               </button>
               <h2 className="text-5xl md:text-6xl font-serif italic text-stone-900">{viewingCategory} Edit</h2>
             </div>
-            <p className="hidden md:block text-xs text-stone-400 italic">Showing {categoryInventory.length} exclusive pieces</p>
+            <p className="hidden md:block text-xs text-stone-400 italic mt-4 md:mt-0">Showing {categoryInventory.length} exclusive pieces</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-20">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-20 mt-24">
             {categoryInventory.map((s, idx) => (
               <div key={s.id} className="group flex flex-col items-center animate-in fade-in slide-in-from-bottom-5" style={{ animationDelay: `${idx * 100}ms` }}>
                 <div className="relative aspect-[3/4] overflow-hidden bg-stone-100 mb-6 w-full shadow-sm group-hover:shadow-xl transition-all duration-500">
